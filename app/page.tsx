@@ -8,93 +8,79 @@ export default function Home() {
   const data = loadDashboardData()
 
   return (
-    <div className="min-h-screen relative p-6 md:p-12">
-      {/* Gradient mesh background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px]" />
+    <div className="min-h-screen p-5 md:p-8 max-w-[1400px] mx-auto">
+      {/* Top Navigation Bar */}
+      <header className="flex items-center justify-between mb-8 animate-fade-in-up">
+        <h1 className="text-2xl md:text-3xl font-bold">
+          YOUR BUSINESS GOAL
+        </h1>
+        <div className="flex items-center gap-3">
+          <button className="px-4 py-2 bg-white/10 rounded-full text-sm font-medium hover:bg-white/20 transition-colors">
+            Wallet
+          </button>
+          <button className="px-4 py-2 bg-white/10 rounded-full text-sm font-medium hover:bg-white/20 transition-colors">
+            Account
+          </button>
+          <button className="px-4 py-2 bg-white/10 rounded-full text-sm font-medium hover:bg-white/20 transition-colors">
+            KO
+          </button>
+        </div>
+      </header>
+
+      {/* Main Progress Card */}
+      <div
+        className="bg-[#F5F5F0] rounded-[32px] p-8 mb-6 animate-scale-in"
+        style={{ animationDelay: '100ms', opacity: 0 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-black">Your Progress</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">DETAILED</span>
+            <div className="relative w-12 h-6 bg-black rounded-full">
+              <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
+            </div>
+          </div>
+        </div>
+
+        <PhaseTimeline phases={data.phases} />
       </div>
 
-      <div className="max-w-[1600px] mx-auto">
-        {/* Header - Staggered reveal */}
-        <header className="mb-12 animate-slide-blur" style={{ animationDelay: '0ms' }}>
-          <div className="flex items-baseline gap-4 mb-2">
-            <h1 className="text-5xl md:text-6xl font-mono font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">
-                {data.metadata.projectName}
-              </span>
-            </h1>
-            <div className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
-          </div>
-          <div className="flex items-center gap-4 text-sm font-mono">
-            <span className="text-slate-400">MISSION CONTROL</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-500">
-              LAST SYNC: {new Date(data.metadata.lastUpdated).toLocaleDateString('ko-KR', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </span>
-          </div>
-        </header>
-
-        {/* Phase Timeline */}
-        <div className="animate-slide-blur" style={{ animationDelay: '100ms' }}>
-          <PhaseTimeline phases={data.phases} />
+      {/* Color Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        {/* Mustard Card - Preparation */}
+        <div
+          className="animate-scale-in"
+          style={{ animationDelay: '200ms', opacity: 0 }}
+        >
+          <TrackCard track={data.tracks.preparation} variant="mustard" />
         </div>
 
-        {/* Tracks - Diagonal layout with stagger */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="animate-slide-blur" style={{ animationDelay: '200ms' }}>
-            <TrackCard track={data.tracks.preparation} variant="cyan" />
-          </div>
-          <div className="animate-slide-blur" style={{ animationDelay: '300ms' }}>
-            <TrackCard track={data.tracks.development} variant="amber" />
-          </div>
+        {/* Lavender Card - Development */}
+        <div
+          className="animate-scale-in"
+          style={{ animationDelay: '250ms', opacity: 0 }}
+        >
+          <TrackCard track={data.tracks.development} variant="lavender" />
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="animate-slide-blur" style={{ animationDelay: '400ms' }}>
-            <MetricsCard
-              title="투자"
-              value={data.metrics.costs.invested}
-              format="currency"
-              trend="neutral"
-            />
-          </div>
-          <div className="animate-slide-blur" style={{ animationDelay: '450ms' }}>
-            <MetricsCard
-              title="매출"
-              value={data.metrics.costs.revenue}
-              format="currency"
-              trend="positive"
-            />
-          </div>
-          <div className="animate-slide-blur" style={{ animationDelay: '500ms' }}>
-            <MetricsCard
-              title="유료 유저"
-              value={data.metrics.users.paid}
-              format="number"
-              trend="positive"
-            />
-          </div>
-          <div className="animate-slide-blur" style={{ animationDelay: '550ms' }}>
-            <MetricsCard
-              title="손익"
-              value={data.metrics.costs.balance}
-              format="currency"
-              trend={data.metrics.costs.balance >= 0 ? 'positive' : 'negative'}
-            />
-          </div>
+        {/* Coral Card - Metrics */}
+        <div
+          className="animate-scale-in"
+          style={{ animationDelay: '300ms', opacity: 0 }}
+        >
+          <MetricsCard
+            costs={data.metrics.costs}
+            users={data.metrics.users}
+          />
         </div>
+      </div>
 
-        {/* Blocker Log */}
-        <div className="animate-slide-blur" style={{ animationDelay: '600ms' }}>
-          <BlockerLog blockers={data.blockers} />
-        </div>
+      {/* Bottom Section - Blockers */}
+      <div
+        className="animate-fade-in-up"
+        style={{ animationDelay: '350ms', opacity: 0 }}
+      >
+        <BlockerLog blockers={data.blockers} />
       </div>
     </div>
   )

@@ -1,55 +1,74 @@
+'use client'
+
 interface MetricsCardProps {
-  title: string
-  value: number
-  format: 'currency' | 'number'
-  trend: 'positive' | 'negative' | 'neutral'
+  costs: {
+    invested: number
+    revenue: number
+    balance: number
+  }
+  users: {
+    signups: number
+    paid: number
+    churned: number
+  }
 }
 
-export default function MetricsCard({ title, value, format, trend }: MetricsCardProps) {
-  const formatValue = (val: number) => {
-    if (format === 'currency') {
-      return `₩${val.toLocaleString('ko-KR')}`
-    }
-    return val.toLocaleString('ko-KR')
+export default function MetricsCard({ costs, users }: MetricsCardProps) {
+  const formatCurrency = (val: number) => {
+    return `₩${val.toLocaleString('ko-KR')}`
   }
 
-  const getTrendColor = () => {
-    if (trend === 'positive') return 'from-emerald-500 to-emerald-300'
-    if (trend === 'negative') return 'from-red-500 to-red-300'
-    return 'from-slate-500 to-slate-300'
-  }
-
-  const getTrendIndicator = () => {
-    if (trend === 'positive') return '▲'
-    if (trend === 'negative') return '▼'
-    return '━'
+  const metrics = {
+    invested: { label: '투자', value: costs.invested, isCurrency: true },
+    revenue: { label: '수익', value: costs.revenue, isCurrency: true },
+    balance: { label: '잔액', value: costs.balance, isCurrency: true },
+    signups: { label: '가입', value: users.signups, isCurrency: false },
+    paid: { label: '유료', value: users.paid, isCurrency: false },
+    churned: { label: '이탈', value: users.churned, isCurrency: false }
   }
 
   return (
-    <div className="relative bg-gradient-to-br from-slate-900/70 to-slate-800/70 backdrop-blur-sm border border-slate-700/50 p-6 overflow-hidden group hover:border-slate-600 transition-all duration-300">
-      {/* Corner accent */}
-      <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${getTrendColor()} opacity-10 blur-2xl`} />
-
-      <div className="relative">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-mono text-slate-500 uppercase tracking-wider">
-            {title}
-          </h3>
-          <span className={`text-lg font-mono bg-gradient-to-r ${getTrendColor()} bg-clip-text text-transparent`}>
-            {getTrendIndicator()}
-          </span>
+    <div className="bg-[#FF6B4A] rounded-[32px] p-6 h-[420px] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-[#8B3A28]">
+          Account
+        </h3>
+        <div className="flex items-center gap-2">
+          <button className="px-3 py-1 bg-black/10 rounded-full text-xs font-medium">
+            Monthly
+          </button>
+          <button className="px-3 py-1 bg-black/5 rounded-full text-xs font-medium">
+            All Time
+          </button>
         </div>
+      </div>
 
-        <div className="font-mono font-bold text-3xl text-slate-200 mb-2">
-          {formatValue(value)}
+      {/* Large Balance Display */}
+      <div className="mb-4">
+        <div className="text-6xl font-bold text-black/90 mb-2">
+          {formatCurrency(costs.balance)}
         </div>
+        <div className="text-sm text-black/60">
+          Current balance
+        </div>
+      </div>
 
-        {/* Minimal progress bar */}
-        <div className="h-[2px] bg-slate-800 overflow-hidden">
-          <div
-            className={`h-full bg-gradient-to-r ${getTrendColor()} animate-diagonal-wipe`}
-          />
-        </div>
+      {/* Metrics Grid */}
+      <div className="flex-1 grid grid-cols-2 gap-3 content-start">
+        {Object.entries(metrics).map(([key, { label, value, isCurrency }]) => (
+          <div key={key} className="bg-black/10 rounded-2xl p-3">
+            <div className="text-xs text-black/60 mb-1">{label}</div>
+            <div className="text-lg font-bold text-black/90">
+              {isCurrency ? formatCurrency(value) : value.toLocaleString('ko-KR')}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom Info */}
+      <div className="text-xs text-black/60 mt-4">
+        Last updated: {new Date().toLocaleDateString('ko-KR')}
       </div>
     </div>
   )

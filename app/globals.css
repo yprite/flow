@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,90 +6,55 @@
 
 @layer base {
   :root {
-    /* Command Center Dark Theme */
-    --bg-primary: 15 15 20;
-    --bg-secondary: 20 20 28;
-    --bg-tertiary: 28 28 38;
-
-    /* Accent Colors */
-    --accent-cyan: 165 243 252;
-    --accent-amber: 251 191 36;
-    --accent-emerald: 52 211 153;
-    --accent-red: 248 113 113;
+    /* Modern Banking Theme */
+    --bg-primary: 0 0 0;
+    --bg-card-mustard: 154 140 68;
+    --bg-card-lavender: 163 157 194;
+    --bg-card-coral: 255 107 74;
+    --bg-card-mint: 192 230 219;
+    --bg-neutral: 245 245 240;
 
     /* Text */
-    --text-primary: 248 250 252;
-    --text-secondary: 203 213 225;
-    --text-muted: 148 163 184;
-
-    /* Borders */
-    --border-subtle: 51 65 85;
-    --border-accent: 71 85 105;
+    --text-primary: 255 255 255;
+    --text-dark: 20 20 20;
+    --text-muted: 160 160 160;
   }
 }
 
 body {
-  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   background: rgb(var(--bg-primary));
   color: rgb(var(--text-primary));
   overflow-x: hidden;
 }
 
-/* Grain texture overlay */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.5' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: overlay;
-}
-
-/* Monospace for data/numbers */
-.font-mono {
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* Staggered animations */
-@keyframes slideInBlur {
+/* Smooth animations */
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    filter: blur(10px);
     transform: translateY(20px);
   }
   to {
     opacity: 1;
-    filter: blur(0);
     transform: translateY(0);
   }
 }
 
-.animate-slide-blur {
-  animation: slideInBlur 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes diagonalWipe {
+@keyframes scaleIn {
   from {
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+    opacity: 0;
+    transform: scale(0.95);
   }
   to {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-.animate-diagonal-wipe {
-  animation: diagonalWipe 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Glow effects */
-.glow-cyan {
-  box-shadow: 0 0 20px rgba(165, 243, 252, 0.2);
-}
-
-.glow-amber {
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

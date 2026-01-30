@@ -1,95 +1,75 @@
 'use client'
 
 import { Track } from '@/lib/types'
-import TaskList from './TaskList'
 
 interface TrackCardProps {
   track: Track
-  variant: 'cyan' | 'amber'
+  variant: 'mustard' | 'lavender'
 }
 
 export default function TrackCard({ track, variant }: TrackCardProps) {
   const completedCount = track.tasks.filter(t => t.status === 'completed').length
   const totalCount = track.tasks.length
 
-  const accentColor = variant === 'cyan'
-    ? 'from-cyan-500 to-cyan-300'
-    : 'from-amber-500 to-amber-300'
-
-  const borderColor = variant === 'cyan'
-    ? 'border-cyan-500/30'
-    : 'border-amber-500/30'
-
-  const glowClass = variant === 'cyan' ? 'glow-cyan' : 'glow-amber'
+  const bgColor = variant === 'mustard' ? 'bg-[#9A8C44]' : 'bg-[#A39DC2]'
+  const textColor = variant === 'mustard' ? 'text-[#5A5228]' : 'text-[#514D7A]'
 
   return (
-    <div className={`relative bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-sm border ${borderColor} rounded-none p-8 overflow-hidden group hover:scale-[1.01] transition-transform duration-300 ${glowClass}`}>
-      {/* Diagonal stripe pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(255,255,255,0.1) 10px,
-            rgba(255,255,255,0.1) 20px
-          )`
-        }} />
+    <div className={`${bgColor} rounded-[32px] p-6 h-[420px] flex flex-col`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className={`text-lg font-semibold ${textColor}`}>
+          {track.name}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button className="px-3 py-1 bg-black/10 rounded-full text-xs font-medium">
+            Weekly
+          </button>
+          <button className="px-3 py-1 bg-black/5 rounded-full text-xs font-medium">
+            Daily
+          </button>
+        </div>
       </div>
 
-      {/* Diagonal progress bar */}
-      <div className="absolute top-0 right-0 w-2 h-full bg-slate-700/50">
-        <div
-          className={`absolute bottom-0 w-full bg-gradient-to-t ${accentColor} transition-all duration-1000 ease-out`}
-          style={{ height: `${track.progress}%` }}
-        />
+      {/* Large Progress Number */}
+      <div className="mb-4">
+        <div className="text-6xl font-bold text-black/90 mb-2">
+          {track.progress}%
+        </div>
+        <div className="text-sm text-black/60">
+          {completedCount} of {totalCount} tasks complete
+        </div>
       </div>
 
-      <div className="relative">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-mono font-bold tracking-tight">
-              <span className={`bg-gradient-to-r ${accentColor} bg-clip-text text-transparent`}>
-                {track.name}
-              </span>
-            </h2>
-            <div className={`text-3xl font-mono font-bold bg-gradient-to-r ${accentColor} bg-clip-text text-transparent`}>
-              {track.progress}
-              <span className="text-lg">%</span>
+      {/* Simple Bar Chart Visualization */}
+      <div className="flex-1 flex items-end gap-1 mb-4">
+        {track.tasks.slice(0, 12).map((task, i) => {
+          const height = task.status === 'completed' ? 100 : task.status === 'in_progress' ? 60 : 30
+          return (
+            <div key={i} className="flex-1 flex flex-col justify-end">
+              <div
+                className={`w-full rounded-t transition-all ${
+                  task.status === 'completed'
+                    ? 'bg-black/70'
+                    : task.status === 'in_progress'
+                    ? 'bg-black/40'
+                    : 'bg-black/15'
+                }`}
+                style={{ height: `${height}%` }}
+              />
             </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
-            <span className="px-2 py-1 bg-slate-800/50 border border-slate-700 rounded">
-              {completedCount}/{totalCount} COMPLETE
-            </span>
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-700 to-transparent" />
-          </div>
-        </div>
-
-        {/* Task list with custom scrollbar */}
-        <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-          <TaskList tasks={track.tasks} variant={variant} />
-        </div>
+          )
+        })}
       </div>
 
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(51, 65, 85, 0.3);
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: ${variant === 'cyan' ? 'rgba(165, 243, 252, 0.3)' : 'rgba(251, 191, 36, 0.3)'};
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: ${variant === 'cyan' ? 'rgba(165, 243, 252, 0.5)' : 'rgba(251, 191, 36, 0.5)'};
-        }
-      `}</style>
+      {/* Bottom Info */}
+      <div className="text-xs text-black/60">
+        {track.tasks.filter(t => t.status === 'in_progress').length > 0 && (
+          <span>
+            {track.tasks.filter(t => t.status === 'in_progress').length} tasks in progress
+          </span>
+        )}
+      </div>
     </div>
   )
 }
