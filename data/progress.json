@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "projectName": "일정비서",
+    "startDate": "2025-01-31",
+    "lastUpdated": "2025-01-31T00:00:00Z"
+  },
+  "tracks": {
+    "preparation": {
+      "name": "사업 준비",
+      "progress": 0,
+      "tasks": [
+        {
+          "id": "prep-1",
+          "title": "사업자 등록",
+          "status": "pending",
+          "category": "legal"
+        },
+        {
+          "id": "prep-2",
+          "title": "통신판매업 신고",
+          "status": "pending",
+          "category": "legal",
+          "blockedBy": "prep-1"
+        },
+        {
+          "id": "prep-3",
+          "title": "카카오 비즈채널 등록",
+          "status": "pending",
+          "category": "communication"
+        },
+        {
+          "id": "prep-4",
+          "title": "알림톡 템플릿 승인",
+          "status": "pending",
+          "category": "communication",
+          "blockedBy": "prep-3"
+        },
+        {
+          "id": "prep-5",
+          "title": "NHN Cloud 문자 API 가입",
+          "status": "pending",
+          "category": "communication"
+        },
+        {
+          "id": "prep-6",
+          "title": "080/1588 수신번호 발급",
+          "status": "pending",
+          "category": "communication"
+        },
+        {
+          "id": "prep-7",
+          "title": "토스페이먼츠 가맹점 등록",
+          "status": "pending",
+          "category": "payment"
+        },
+        {
+          "id": "prep-8",
+          "title": "개인정보처리방침 작성",
+          "status": "pending",
+          "category": "legal"
+        }
+      ]
+    },
+    "development": {
+      "name": "개발",
+      "progress": 0,
+      "tasks": [
+        {
+          "id": "dev-1",
+          "title": "Supabase 프로젝트 생성",
+          "status": "pending",
+          "category": "infrastructure"
+        },
+        {
+          "id": "dev-2",
+          "title": "DB 스키마 마이그레이션",
+          "status": "pending",
+          "category": "infrastructure",
+          "blockedBy": "dev-1"
+        },
+        {
+          "id": "dev-3",
+          "title": "웹훅 수신 Edge Function 구현",
+          "status": "pending",
+          "category": "infrastructure"
+        },
+        {
+          "id": "dev-4",
+          "title": "Message Router 구현",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-5",
+          "title": "Intake Agent 구현",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-6",
+          "title": "Schedule Agent 구현 (LLM 파싱)",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-7",
+          "title": "Confirm Agent 구현",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-8",
+          "title": "상태 관리 및 타임아웃 처리",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-9",
+          "title": "목록 명령어 구현",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-10",
+          "title": "E2E 테스트",
+          "status": "pending",
+          "category": "testing"
+        },
+        {
+          "id": "dev-11",
+          "title": "기사 온보딩 플로우",
+          "status": "pending",
+          "category": "onboarding"
+        },
+        {
+          "id": "dev-12",
+          "title": "토스페이먼츠 정기결제 연동",
+          "status": "pending",
+          "category": "payment",
+          "blockedBy": "prep-7"
+        },
+        {
+          "id": "dev-13",
+          "title": "구독 상태 관리",
+          "status": "pending",
+          "category": "payment"
+        },
+        {
+          "id": "dev-14",
+          "title": "고객 응답용 웹폼 페이지",
+          "status": "pending",
+          "category": "core-features"
+        },
+        {
+          "id": "dev-15",
+          "title": "예외 처리 강화",
+          "status": "pending",
+          "category": "stability"
+        },
+        {
+          "id": "dev-16",
+          "title": "Sentry 에러 모니터링",
+          "status": "pending",
+          "category": "operations"
+        },
+        {
+          "id": "dev-17",
+          "title": "부하 테스트",
+          "status": "pending",
+          "category": "testing"
+        },
+        {
+          "id": "dev-18",
+          "title": "베타 사용자 테스트",
+          "status": "pending",
+          "category": "testing"
+        }
+      ]
+    }
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "MVP 런칭",
+      "duration": "Month 1-2",
+      "progress": 0,
+      "unlockCondition": "트랙 A 80% + 트랙 B 100%",
+      "milestones": [
+        { "id": "m1", "title": "베타 테스트 시작", "status": "pending" },
+        { "id": "m2", "title": "정식 런칭", "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "성장 - 초기",
+      "duration": "Month 3-4",
+      "progress": 0,
+      "milestones": [
+        { "id": "m3", "title": "첫 유료 고객", "status": "pending" },
+        { "id": "m4", "title": "10명 돌파", "status": "pending" },
+        { "id": "m5", "title": "100명 돌파", "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "성장 - 중기",
+      "duration": "Month 5-8",
+      "progress": 0,
+      "milestones": [
+        { "id": "m6", "title": "손익분기점 (325명)", "status": "pending", "metric": "325명" },
+        { "id": "m7", "title": "프리미엄 플랜 출시", "status": "pending" }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "스케일",
+      "duration": "Month 9-12",
+      "progress": 0,
+      "milestones": [
+        { "id": "m8", "title": "팀 플랜 출시", "status": "pending" },
+        { "id": "m9", "title": "월 매출 100만원", "status": "pending", "metric": "₩1,000,000" }
+      ]
+    }
+  ],
+  "metrics": {
+    "costs": {
+      "invested": 0,
+      "revenue": 0,
+      "balance": 0
+    },
+    "users": {
+      "signups": 0,
+      "paid": 0,
+      "churned": 0
+    }
+  },
+  "blockers": []
+}
