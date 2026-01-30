@@ -15,52 +15,105 @@ export default function PhaseTimeline({ phases }: PhaseTimelineProps) {
   const currentPhaseIndex = getCurrentPhaseIndex()
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-lg font-bold text-slate-900 mb-4">사업 단계</h2>
+    <div className="relative bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 mb-8 overflow-hidden">
+      {/* Animated scan line */}
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 animate-pulse" />
 
-      <div className="flex items-center justify-between">
-        {phases.map((phase, index) => (
-          <div key={phase.id} className="flex items-center flex-1">
-            <div className="flex flex-col items-center flex-1">
+      <div className="flex items-center gap-4 mb-8">
+        <h2 className="text-lg font-mono font-bold text-slate-300 uppercase tracking-wider">
+          Mission Timeline
+        </h2>
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-700 to-transparent" />
+      </div>
+
+      <div className="relative">
+        {/* Progress track */}
+        <div className="absolute top-8 left-0 right-0 h-[2px] bg-slate-700">
+          <div
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-500 via-emerald-500 to-amber-500 transition-all duration-1000"
+            style={{
+              width: `${((currentPhaseIndex + 1) / phases.length) * 100}%`
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-4 gap-4">
+          {phases.map((phase, index) => {
+            const isActive = index === currentPhaseIndex
+            const isComplete = index < currentPhaseIndex
+            const isPending = index > currentPhaseIndex
+
+            return (
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
-                  ${index <= currentPhaseIndex
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-slate-200 text-slate-500'
-                  }`}
+                key={phase.id}
+                className="relative flex flex-col items-center group"
               >
-                {index + 1}
+                {/* Node */}
+                <div
+                  className={`
+                    relative z-10 w-16 h-16 flex items-center justify-center
+                    border-2 transition-all duration-500
+                    ${isActive
+                      ? 'border-cyan-400 bg-cyan-500/20 scale-110 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                      : isComplete
+                      ? 'border-emerald-400 bg-emerald-500/20'
+                      : 'border-slate-600 bg-slate-800/50'
+                    }
+                  `}
+                  style={{
+                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                  }}
+                >
+                  <span
+                    className={`font-mono font-bold text-lg ${
+                      isActive || isComplete ? 'text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+
+                {/* Label */}
+                <div className="mt-6 text-center">
+                  <p
+                    className={`
+                      text-sm font-mono font-semibold mb-1
+                      ${isActive
+                        ? 'text-cyan-300'
+                        : isComplete
+                        ? 'text-emerald-300'
+                        : 'text-slate-500'
+                      }
+                    `}
+                  >
+                    {phase.name}
+                  </p>
+                  <p className="text-[10px] font-mono text-slate-600 uppercase">
+                    {phase.duration}
+                  </p>
+                  {phase.progress > 0 && (
+                    <div className="mt-2">
+                      <div className="text-xs font-mono text-slate-400">
+                        {phase.progress}% COMPLETE
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active pulse */}
+                {isActive && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16">
+                    <div className="absolute inset-0 border-2 border-cyan-400 opacity-20 animate-ping"
+                      style={{
+                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                      }}
+                    />
+                  </div>
+                )}
               </div>
-              <p
-                className={`mt-2 text-sm font-medium text-center
-                  ${index === currentPhaseIndex
-                    ? 'text-blue-600 font-bold'
-                    : index < currentPhaseIndex
-                    ? 'text-emerald-600'
-                    : 'text-slate-500'
-                  }`}
-              >
-                {phase.name}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">{phase.duration}</p>
-              {phase.progress > 0 && (
-                <p className="text-xs font-semibold text-blue-600 mt-1">
-                  {phase.progress}%
-                </p>
-              )}
-            </div>
-
-            {index < phases.length - 1 && (
-              <div
-                className={`h-1 flex-1 mx-2
-                  ${index < currentPhaseIndex
-                    ? 'bg-emerald-500'
-                    : 'bg-slate-200'
-                  }`}
-              />
-            )}
-          </div>
-        ))}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
