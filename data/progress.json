@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T12:23:45.123Z"
+    "lastUpdated": "2026-01-31T12:35:00.000Z"
   },
   "tracks": {
     "initialSetup": {
@@ -83,9 +83,10 @@
         {
           "id": "setup-11",
           "title": "API 서버 배포 환경 구축",
-          "status": "pending",
+          "status": "completed",
           "category": "deployment",
-          "notes": "Cloudflare Workers / Railway / Fly.io"
+          "completedAt": "2026-01-31T12:35:00.000Z",
+          "notes": "https://iljeongbiseo-api.yprite.workers.dev (Cloudflare Workers)"
         },
         {
           "id": "setup-12",
