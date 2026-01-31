@@ -22,6 +22,13 @@ function createTestData(): DashboardData {
       lastUpdated: '2025-01-01T00:00:00Z',
     },
     tracks: {
+      initialSetup: {
+        name: '초기 셋업',
+        progress: 0,
+        tasks: [
+          { id: 'setup-1', title: 'Setup Task 1', status: 'pending', category: 'setup' },
+        ],
+      },
       preparation: {
         name: '사업 준비',
         progress: 0,

@@ -83,7 +83,7 @@ describe('validateTask', () => {
       title: 'Invalid Task',
       status: 'invalid_status',
       category: 'legal'
-    } as Task
+    } as unknown as Task
     expect(validateTask(task)).toBe(false)
   })
 

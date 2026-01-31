@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T08:59:07.476Z"
+    "lastUpdated": "2026-01-31T12:05:08.025Z"
   },
   "tracks": {
     "initialSetup": {
@@ -174,7 +174,7 @@
     },
     "development": {
       "name": "개발",
-      "progress": 44,
+      "progress": 72,
       "tasks": [
         {
           "id": "dev-1",
@@ -229,8 +229,9 @@
         {
           "id": "dev-8",
           "title": "상태 관리 및 타임아웃 처리",
-          "status": "pending",
-          "category": "core-features"
+          "status": "completed",
+          "category": "core-features",
+          "completedAt": "2026-01-31T12:02:43.043Z"
         },
         {
           "id": "dev-9",
@@ -248,8 +249,9 @@
         {
           "id": "dev-11",
           "title": "기사 온보딩 플로우",
-          "status": "pending",
-          "category": "onboarding"
+          "status": "completed",
+          "category": "onboarding",
+          "completedAt": "2026-01-31T12:05:07.018Z"
         },
         {
           "id": "dev-12",
@@ -261,20 +263,23 @@
         {
           "id": "dev-13",
           "title": "구독 상태 관리",
-          "status": "pending",
-          "category": "payment"
+          "status": "completed",
+          "category": "payment",
+          "completedAt": "2026-01-31T12:05:07.362Z"
         },
         {
           "id": "dev-14",
           "title": "고객 응답용 웹폼 페이지",
-          "status": "pending",
-          "category": "core-features"
+          "status": "completed",
+          "category": "core-features",
+          "completedAt": "2026-01-31T12:05:07.694Z"
         },
         {
           "id": "dev-15",
           "title": "예외 처리 강화",
-          "status": "pending",
-          "category": "stability"
+          "status": "completed",
+          "category": "stability",
+          "completedAt": "2026-01-31T12:05:08.024Z"
         },
         {
           "id": "dev-16",
