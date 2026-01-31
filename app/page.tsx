@@ -25,6 +25,7 @@ import {
 import { useDashboard } from '@/lib/use-dashboard'
 import { DashboardData, Task } from '@/lib/types'
 import { TaskStatus, Track } from '@/lib/validation'
+import UseCaseFlow from '@/components/UseCaseFlow'
 
 const statusConfig = {
   completed: {
@@ -370,6 +371,15 @@ export default function Home() {
                 onAddTask={() => setShowAddTask('development')}
               />
             </div>
+
+            {/* Service Flow */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <UseCaseFlow />
+            </motion.div>
           </motion.div>
         </div>
 
