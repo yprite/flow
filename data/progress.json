@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T12:06:58.720Z"
+    "lastUpdated": "2026-01-31T12:22:58.295Z"
   },
   "tracks": {
     "initialSetup": {
@@ -174,7 +174,7 @@
     },
     "development": {
       "name": "개발",
-      "progress": 78,
+      "progress": 83,
       "tasks": [
         {
           "id": "dev-1",
@@ -243,8 +243,9 @@
         {
           "id": "dev-10",
           "title": "E2E 테스트",
-          "status": "pending",
-          "category": "testing"
+          "status": "completed",
+          "category": "testing",
+          "completedAt": "2026-01-31T12:22:58.294Z"
         },
         {
           "id": "dev-11",
