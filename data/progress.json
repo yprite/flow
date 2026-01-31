@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T12:05:08.025Z"
+    "lastUpdated": "2026-01-31T12:06:58.720Z"
   },
   "tracks": {
     "initialSetup": {
@@ -174,7 +174,7 @@
     },
     "development": {
       "name": "개발",
-      "progress": 72,
+      "progress": 78,
       "tasks": [
         {
           "id": "dev-1",
@@ -284,8 +284,9 @@
         {
           "id": "dev-16",
           "title": "Sentry 에러 모니터링",
-          "status": "pending",
-          "category": "operations"
+          "status": "completed",
+          "category": "operations",
+          "completedAt": "2026-01-31T12:06:58.719Z"
         },
         {
           "id": "dev-17",
