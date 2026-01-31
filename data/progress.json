@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2025-01-31T00:00:00Z"
+    "lastUpdated": "2026-01-31T08:16:00.255Z"
   },
   "tracks": {
     "preparation": {
@@ -51,7 +51,8 @@
           "id": "prep-7",
           "title": "토스페이먼츠 가맹점 등록",
           "status": "pending",
-          "category": "payment"
+          "category": "payment",
+          "notes": "사업자등록증 필요"
         },
         {
           "id": "prep-8",
@@ -63,13 +64,14 @@
     },
     "development": {
       "name": "개발",
-      "progress": 0,
+      "progress": 6,
       "tasks": [
         {
           "id": "dev-1",
           "title": "Supabase 프로젝트 생성",
-          "status": "pending",
-          "category": "infrastructure"
+          "status": "completed",
+          "category": "infrastructure",
+          "completedAt": "2026-01-31T08:16:00.255Z"
         },
         {
           "id": "dev-2",
@@ -186,8 +188,16 @@
       "progress": 0,
       "unlockCondition": "트랙 A 80% + 트랙 B 100%",
       "milestones": [
-        { "id": "m1", "title": "베타 테스트 시작", "status": "pending" },
-        { "id": "m2", "title": "정식 런칭", "status": "pending" }
+        {
+          "id": "m1",
+          "title": "베타 테스트 시작",
+          "status": "pending"
+        },
+        {
+          "id": "m2",
+          "title": "정식 런칭",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -196,9 +206,21 @@
       "duration": "Month 3-4",
       "progress": 0,
       "milestones": [
-        { "id": "m3", "title": "첫 유료 고객", "status": "pending" },
-        { "id": "m4", "title": "10명 돌파", "status": "pending" },
-        { "id": "m5", "title": "100명 돌파", "status": "pending" }
+        {
+          "id": "m3",
+          "title": "첫 유료 고객",
+          "status": "pending"
+        },
+        {
+          "id": "m4",
+          "title": "10명 돌파",
+          "status": "pending"
+        },
+        {
+          "id": "m5",
+          "title": "100명 돌파",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -207,8 +229,17 @@
       "duration": "Month 5-8",
       "progress": 0,
       "milestones": [
-        { "id": "m6", "title": "손익분기점 (325명)", "status": "pending", "metric": "325명" },
-        { "id": "m7", "title": "프리미엄 플랜 출시", "status": "pending" }
+        {
+          "id": "m6",
+          "title": "손익분기점 (325명)",
+          "status": "pending",
+          "metric": "325명"
+        },
+        {
+          "id": "m7",
+          "title": "프리미엄 플랜 출시",
+          "status": "pending"
+        }
       ]
     },
     {
@@ -217,16 +248,25 @@
       "duration": "Month 9-12",
       "progress": 0,
       "milestones": [
-        { "id": "m8", "title": "팀 플랜 출시", "status": "pending" },
-        { "id": "m9", "title": "월 매출 100만원", "status": "pending", "metric": "₩1,000,000" }
+        {
+          "id": "m8",
+          "title": "팀 플랜 출시",
+          "status": "pending"
+        },
+        {
+          "id": "m9",
+          "title": "월 매출 100만원",
+          "status": "pending",
+          "metric": "₩1,000,000"
+        }
       ]
     }
   ],
   "metrics": {
     "costs": {
-      "invested": 0,
+      "invested": 500000,
       "revenue": 0,
-      "balance": 0
+      "balance": -500000
     },
     "users": {
       "signups": 0,
@@ -234,5 +274,17 @@
       "churned": 0
     }
   },
-  "blockers": []
+  "blockers": [
+    {
+      "date": "2025-01-31",
+      "title": "토스페이먼츠 심사 대기",
+      "description": "사업자등록 후 가맹점 심사가 영업일 기준 3-5일 소요됨",
+      "affectedTasks": [
+        "prep-7",
+        "dev-12"
+      ],
+      "resolved": true,
+      "resolvedAt": "2026-01-31T08:11:29.601Z"
+    }
+  ]
 }

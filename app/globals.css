@@ -1,60 +1,38 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+}
 
 @layer base {
-  :root {
-    /* Modern Banking Theme */
-    --bg-primary: 0 0 0;
-    --bg-card-mustard: 154 140 68;
-    --bg-card-lavender: 163 157 194;
-    --bg-card-coral: 255 107 74;
-    --bg-card-mint: 192 230 219;
-    --bg-neutral: 245 245 240;
+  @font-face {
+    font-family: 'Plus Jakarta Sans';
+    src: url('https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_qU79TR_V.woff2') format('woff2');
+    font-weight: 400 800;
+    font-display: swap;
+  }
 
-    /* Text */
-    --text-primary: 255 255 255;
-    --text-dark: 20 20 20;
-    --text-muted: 160 160 160;
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+    color: var(--color-foreground);
+    min-height: 100vh;
   }
 }
 
-body {
-  font-family: 'Inter', -apple-system, sans-serif;
-  background: rgb(var(--bg-primary));
-  color: rgb(var(--text-primary));
-  overflow-x: hidden;
+/* Custom utility classes */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 }
 
-/* Smooth animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.shadow-elevated {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 20px 40px -10px rgba(0, 0, 0, 0.1);
 }
