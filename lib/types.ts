@@ -6,6 +6,7 @@ export interface DashboardData {
   }
 
   tracks: {
+    initialSetup: Track
     preparation: Track
     development: Track
   }

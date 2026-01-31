@@ -5,7 +5,7 @@ export const TaskStatusEnum = z.enum(['completed', 'in_progress', 'blocked', 'pe
 export type TaskStatus = z.infer<typeof TaskStatusEnum>
 
 // Track enum
-export const TrackEnum = z.enum(['preparation', 'development'])
+export const TrackEnum = z.enum(['initialSetup', 'preparation', 'development'])
 export type Track = z.infer<typeof TrackEnum>
 
 // Milestone status enum

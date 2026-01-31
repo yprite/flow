@@ -5,7 +5,7 @@ import { AddTask, AddBlocker, UpdateMetrics, MilestoneStatus, TaskStatus, Track 
  * Generate a unique task ID for a given track
  */
 export function generateTaskId(data: DashboardData, track: Track): string {
-  const prefix = track === 'preparation' ? 'prep' : 'dev'
+  const prefix = track === 'initialSetup' ? 'setup' : track === 'preparation' ? 'prep' : 'dev'
   const tasks = data.tracks[track].tasks
   const maxNum = tasks.reduce((max, task) => {
     const match = task.id.match(new RegExp(`^${prefix}-(\\d+)$`))
@@ -31,7 +31,7 @@ function findTaskInfo(
   data: DashboardData,
   taskId: string
 ): { track: Track; index: number } | null {
-  for (const track of ['preparation', 'development'] as Track[]) {
+  for (const track of ['initialSetup', 'preparation', 'development'] as Track[]) {
     const index = data.tracks[track].tasks.findIndex(t => t.id === taskId)
     if (index !== -1) {
       return { track, index }

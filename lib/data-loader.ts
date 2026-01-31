@@ -10,6 +10,7 @@ export function loadDashboardData(): DashboardData {
   const data = JSON.parse(jsonData) as DashboardData
 
   // 진행률 자동 계산
+  data.tracks.initialSetup.progress = calculateProgress(data.tracks.initialSetup.tasks)
   data.tracks.preparation.progress = calculateProgress(data.tracks.preparation.tasks)
   data.tracks.development.progress = calculateProgress(data.tracks.development.tasks)
 

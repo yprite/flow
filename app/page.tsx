@@ -86,7 +86,7 @@ export default function Home() {
     )
   }
 
-  const allTasks = [...data.tracks.preparation.tasks, ...data.tracks.development.tasks]
+  const allTasks = [...data.tracks.initialSetup.tasks, ...data.tracks.preparation.tasks, ...data.tracks.development.tasks]
   const completedTasks = allTasks.filter(t => t.status === 'completed').length
   const inProgressTasks = allTasks.filter(t => t.status === 'in_progress').length
   const blockedTasks = allTasks.filter(t => t.status === 'blocked').length
@@ -180,8 +180,15 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
+          className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10"
         >
+          <StatCard
+            icon={Sparkles}
+            label="초기 셋업"
+            value={`${data.tracks.initialSetup.progress}%`}
+            subtext={`${data.tracks.initialSetup.tasks.filter(t => t.status === 'completed').length}/${data.tracks.initialSetup.tasks.length} 완료`}
+            color="sky"
+          />
           <StatCard
             icon={Target}
             label="사업 준비"
@@ -334,7 +341,16 @@ export default function Home() {
             </div>
 
             {/* Track Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <TaskTrackCard
+                track={data.tracks.initialSetup}
+                trackKey="initialSetup"
+                gradient="from-sky-500 to-sky-600"
+                lightBg="bg-sky-50"
+                testId="track-initialSetup"
+                onStatusChange={handleStatusChange}
+                onAddTask={() => setShowAddTask('initialSetup')}
+              />
               <TaskTrackCard
                 track={data.tracks.preparation}
                 trackKey="preparation"
@@ -387,7 +403,7 @@ export default function Home() {
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-slate-800">
-                    새 태스크 추가 ({showAddTask === 'preparation' ? '사업 준비' : '개발'})
+                    새 태스크 추가 ({showAddTask === 'initialSetup' ? '초기 셋업' : showAddTask === 'preparation' ? '사업 준비' : '개발'})
                   </h3>
                   <button
                     onClick={() => setShowAddTask(null)}
@@ -456,9 +472,14 @@ function StatCard({ icon: Icon, label, value, subtext, color }: {
   label: string
   value: string
   subtext: string
-  color: 'indigo' | 'violet' | 'emerald' | 'amber'
+  color: 'sky' | 'indigo' | 'violet' | 'emerald' | 'amber'
 }) {
   const colors = {
+    sky: {
+      gradient: 'from-sky-500 to-sky-600',
+      shadow: 'shadow-sky-200',
+      text: 'text-sky-600'
+    },
     indigo: {
       gradient: 'from-indigo-500 to-indigo-600',
       shadow: 'shadow-indigo-200',

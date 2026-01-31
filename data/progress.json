@@ -2,9 +2,119 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T08:16:00.255Z"
+    "lastUpdated": "2026-01-31T08:50:35.434Z"
   },
   "tracks": {
+    "initialSetup": {
+      "name": "초기 셋업",
+      "progress": 0,
+      "tasks": [
+        {
+          "id": "setup-1",
+          "title": "GitHub 저장소 생성 (business-1)",
+          "status": "completed",
+          "category": "repository",
+          "completedAt": "2026-01-31T07:00:00.000Z"
+        },
+        {
+          "id": "setup-2",
+          "title": "GitHub 저장소 생성 (business-1-dashboard)",
+          "status": "completed",
+          "category": "repository",
+          "completedAt": "2026-01-31T08:35:00.000Z"
+        },
+        {
+          "id": "setup-3",
+          "title": "대시보드 Vercel 배포",
+          "status": "completed",
+          "category": "deployment",
+          "completedAt": "2026-01-31T08:40:00.000Z",
+          "notes": "https://flow-three-sigma.vercel.app"
+        },
+        {
+          "id": "setup-4",
+          "title": "Supabase 프로젝트 생성",
+          "status": "completed",
+          "category": "infrastructure",
+          "completedAt": "2026-01-31T08:45:00.000Z",
+          "notes": "qcxwmqcfawccpugwqemg.supabase.co"
+        },
+        {
+          "id": "setup-5",
+          "title": "환경 변수 설정 (.env)",
+          "status": "completed",
+          "category": "configuration",
+          "completedAt": "2026-01-31T08:47:00.000Z"
+        },
+        {
+          "id": "setup-6",
+          "title": "DB 스키마 초기 마이그레이션",
+          "status": "completed",
+          "category": "infrastructure",
+          "completedAt": "2026-01-31T08:50:00.000Z"
+        },
+        {
+          "id": "setup-7",
+          "title": "OpenAI API 키 발급",
+          "status": "pending",
+          "category": "api-keys",
+          "notes": "LLM 일정 파싱용"
+        },
+        {
+          "id": "setup-8",
+          "title": "카카오 개발자 계정 생성",
+          "status": "pending",
+          "category": "api-keys"
+        },
+        {
+          "id": "setup-9",
+          "title": "NHN Cloud 계정 생성",
+          "status": "pending",
+          "category": "api-keys",
+          "notes": "SMS 발송용"
+        },
+        {
+          "id": "setup-10",
+          "title": "도메인 구매 및 연결",
+          "status": "pending",
+          "category": "deployment",
+          "notes": "일정비서.kr 또는 .com"
+        },
+        {
+          "id": "setup-11",
+          "title": "API 서버 배포 환경 구축",
+          "status": "pending",
+          "category": "deployment",
+          "notes": "Cloudflare Workers / Railway / Fly.io"
+        },
+        {
+          "id": "setup-12",
+          "title": "로컬 개발 환경 문서화",
+          "status": "pending",
+          "category": "documentation"
+        },
+        {
+          "id": "setup-13",
+          "title": "CI/CD 파이프라인 구축",
+          "status": "pending",
+          "category": "devops",
+          "notes": "GitHub Actions"
+        },
+        {
+          "id": "setup-14",
+          "title": "Sentry 프로젝트 생성",
+          "status": "pending",
+          "category": "monitoring"
+        },
+        {
+          "id": "setup-15",
+          "title": "Slack/Discord 알림 연동",
+          "status": "pending",
+          "category": "monitoring",
+          "notes": "에러 알림, 신규 가입 알림"
+        }
+      ]
+    },
     "preparation": {
       "name": "사업 준비",
       "progress": 0,
@@ -64,7 +174,7 @@
     },
     "development": {
       "name": "개발",
-      "progress": 6,
+      "progress": 11,
       "tasks": [
         {
           "id": "dev-1",
@@ -76,9 +186,10 @@
         {
           "id": "dev-2",
           "title": "DB 스키마 마이그레이션",
-          "status": "pending",
+          "status": "completed",
           "category": "infrastructure",
-          "blockedBy": "dev-1"
+          "blockedBy": "dev-1",
+          "completedAt": "2026-01-31T08:50:35.433Z"
         },
         {
           "id": "dev-3",
