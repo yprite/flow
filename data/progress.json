@@ -2,7 +2,7 @@
   "metadata": {
     "projectName": "일정비서",
     "startDate": "2025-01-31",
-    "lastUpdated": "2026-01-31T12:22:58.295Z"
+    "lastUpdated": "2026-01-31T12:23:45.123Z"
   },
   "tracks": {
     "initialSetup": {
@@ -174,7 +174,7 @@
     },
     "development": {
       "name": "개발",
-      "progress": 83,
+      "progress": 89,
       "tasks": [
         {
           "id": "dev-1",
@@ -292,8 +292,9 @@
         {
           "id": "dev-17",
           "title": "부하 테스트",
-          "status": "pending",
-          "category": "testing"
+          "status": "completed",
+          "category": "testing",
+          "completedAt": "2026-01-31T12:23:45.122Z"
         },
         {
           "id": "dev-18",
