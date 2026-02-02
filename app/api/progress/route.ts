@@ -25,6 +25,7 @@ const DATA_PATH = path.join(process.cwd(), 'data', 'progress.json')
 function loadData(): DashboardData {
   const jsonData = fs.readFileSync(DATA_PATH, 'utf-8')
   const data = JSON.parse(jsonData) as DashboardData
+  data.tracks.initialSetup.progress = calculateProgress(data.tracks.initialSetup.tasks)
   data.tracks.preparation.progress = calculateProgress(data.tracks.preparation.tasks)
   data.tracks.development.progress = calculateProgress(data.tracks.development.tasks)
   return data
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Recalculate progress after update
+    result.tracks.initialSetup.progress = calculateProgress(result.tracks.initialSetup.tasks)
     result.tracks.preparation.progress = calculateProgress(result.tracks.preparation.tasks)
     result.tracks.development.progress = calculateProgress(result.tracks.development.tasks)
 
