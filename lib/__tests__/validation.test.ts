@@ -12,6 +12,7 @@ import {
   AddTaskSchema,
   AddBlockerSchema,
   UpdateMetricsSchema,
+  TrackAnalyticsEventSchema,
 } from '../validation'
 
 describe('TaskSchema', () => {
@@ -258,6 +259,35 @@ describe('UpdateMetricsSchema', () => {
     }
     const result = UpdateMetricsSchema.safeParse(update)
     expect(result.success).toBe(true)
+  })
+})
+
+describe('TrackAnalyticsEventSchema', () => {
+  it('should validate a valid analytics event payload', () => {
+    const payload = {
+      eventName: 'signup_completed',
+      userId: 'user-1',
+      occurredAt: '2026-03-01T10:00:00.000Z',
+      source: 'web',
+      properties: {
+        channel: 'seo',
+        plan: 'free',
+      },
+    }
+
+    const result = TrackAnalyticsEventSchema.safeParse(payload)
+    expect(result.success).toBe(true)
+  })
+
+  it('should reject invalid analytics event name', () => {
+    const payload = {
+      eventName: 'invalid_event',
+      userId: 'user-1',
+      properties: {},
+    }
+
+    const result = TrackAnalyticsEventSchema.safeParse(payload)
+    expect(result.success).toBe(false)
   })
 })
 

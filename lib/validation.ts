@@ -111,3 +111,30 @@ export const UpdateMilestoneSchema = z.object({
   status: MilestoneStatusEnum,
 })
 export type UpdateMilestone = z.infer<typeof UpdateMilestoneSchema>
+
+// Analytics event schemas
+export const AnalyticsEventNameEnum = z.enum([
+  'landing_viewed',
+  'signup_completed',
+  'first_query_completed',
+  'session_started',
+  'query_executed',
+])
+export type AnalyticsEventName = z.infer<typeof AnalyticsEventNameEnum>
+
+export const AnalyticsEventSourceEnum = z.enum(['web', 'api', 'worker', 'import'])
+export type AnalyticsEventSource = z.infer<typeof AnalyticsEventSourceEnum>
+
+export const AnalyticsPropertiesSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.null()])
+)
+
+export const TrackAnalyticsEventSchema = z.object({
+  eventName: AnalyticsEventNameEnum,
+  userId: z.string().min(1),
+  occurredAt: z.string().datetime().optional(),
+  source: AnalyticsEventSourceEnum.optional(),
+  properties: AnalyticsPropertiesSchema.optional().default({}),
+})
+export type TrackAnalyticsEvent = z.infer<typeof TrackAnalyticsEventSchema>

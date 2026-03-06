@@ -1,0 +1,32 @@
+[
+  {
+    "id": "guided-first-query",
+    "title": "Guided First Query Template",
+    "change": "Added one-click starter query templates in onboarding.",
+    "metric": "First session completion rate",
+    "before": 42,
+    "after": 63,
+    "sampleSize": 312,
+    "windowDays": 14
+  },
+  {
+    "id": "contextual-query-suggestions",
+    "title": "Contextual Query Suggestions",
+    "change": "Showed personalized suggestions immediately after first successful query.",
+    "metric": "First-to-second query conversion",
+    "before": 18,
+    "after": 29,
+    "sampleSize": 280,
+    "windowDays": 14
+  },
+  {
+    "id": "reactivation-reminder",
+    "title": "7-Day Return Reminder",
+    "change": "Triggered reminder message with saved query shortcuts after inactivity.",
+    "metric": "7-day return rate",
+    "before": 24,
+    "after": 37,
+    "sampleSize": 450,
+    "windowDays": 28
+  }
+]
