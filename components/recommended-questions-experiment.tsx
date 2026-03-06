@@ -69,14 +69,10 @@ export default function RecommendedQuestionsExperiment({
   slug,
   recommendedQuestions,
 }: RecommendedQuestionsExperimentProps) {
-  const [variant, setVariant] = useState<ExperimentVariant>('control')
+  const [variant] = useState<ExperimentVariant>(() => pickVariant())
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
   const landingTrackedRef = useRef(false)
   const topQuestions = useMemo(() => recommendedQuestions.slice(0, 5), [recommendedQuestions])
-
-  useEffect(() => {
-    setVariant(pickVariant())
-  }, [])
 
   useEffect(() => {
     if (landingTrackedRef.current) return

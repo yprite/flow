@@ -39,7 +39,7 @@ export async function GET() {
   try {
     const data = loadData()
     return NextResponse.json({ success: true, data })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: 'Failed to load data' },
       { status: 500 }
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { action, payload } = body
 
-    let data = loadData()
+    const data = loadData()
     let result: DashboardData
 
     switch (action) {

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import Link from 'next/link'
 
 type HeroVariant = 'control' | 'value_copy'
 
@@ -68,11 +69,7 @@ export default function LandingHeroCopyExperiment({
   defaultTitle,
   defaultDescription,
 }: LandingHeroCopyExperimentProps) {
-  const [variant, setVariant] = useState<HeroVariant>('control')
-
-  useEffect(() => {
-    setVariant(pickHeroVariant())
-  }, [])
+  const [variant] = useState<HeroVariant>(() => pickHeroVariant())
 
   const heroCopy = variant === 'value_copy'
     ? {
@@ -121,14 +118,14 @@ export default function LandingHeroCopyExperiment({
       <h1 className="text-4xl font-bold text-slate-900">{heroCopy.title}</h1>
       <p className="text-slate-600 mt-3 max-w-3xl">{heroCopy.description}</p>
 
-      <a
+      <Link
         href="/"
         data-testid="hero-signup-cta"
         onClick={handleSignupClick}
         className="inline-flex mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
       >
         {heroCopy.ctaLabel}
-      </a>
+      </Link>
     </section>
   )
 }
