@@ -172,6 +172,14 @@ function getNaverMapUrl(name: string): string {
   return `https://map.naver.com/v5/search/${encodeURIComponent(name + ' 주유소')}`
 }
 
+function getKakaoMapUrl(name: string): string {
+  return `https://map.kakao.com/link/search/${encodeURIComponent(name + ' 주유소')}`
+}
+
+function getTmapUrl(name: string): string {
+  return `tmap://search?name=${encodeURIComponent(name + ' 주유소')}`
+}
+
 function relativeTime(dateStr: string): string {
   try {
     const diff = Date.now() - new Date(dateStr).getTime()
@@ -811,10 +819,26 @@ export default function GasFinderPage() {
                             href={getNaverMapUrl(station.name)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
-                            길찾기
+                            네이버
+                          </a>
+                          <a
+                            href={getKakaoMapUrl(station.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-bold rounded-lg transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            카카오
+                          </a>
+                          <a
+                            href={getTmapUrl(station.name)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            티맵
                           </a>
                         </div>
                       </div>
