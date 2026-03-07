@@ -1,9 +1,10 @@
-import type { Metadata } from "next"
-import "./globals.css"
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "일정비서 사업 대시보드",
-  description: "일정비서 사업 진행 현황 모니터링 대시보드",
+  title: '기름값 헌터 - 주유소 최저가 검색기',
+  description:
+    '월급은 통장을 스쳐가고... 기름값은 지갑을 관통한다. 내 주변 최저가 주유소를 찾아보세요.',
 }
 
 export default function RootLayout({
@@ -13,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">
-        {children}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   )
 }
