@@ -121,6 +121,17 @@ function wgs84ToTM128(lat: number, lng: number): [number, number] {
   return besselToTM128(besselPhi, besselLam)
 }
 
+// ─── Cache (30분 TTL) ──────────────────────────────────────────
+const CACHE_TTL = 30 * 60 * 1000
+const cache = new Map<string, { data: unknown; expires: number }>()
+
+function getCacheKey(lat: number, lng: number, fuel: string, radius: number, sort: string) {
+  // 좌표를 소수점 3자리로 반올림해서 근접 요청도 캐시 히트되도록
+  const roundedLat = Math.round(lat * 1000) / 1000
+  const roundedLng = Math.round(lng * 1000) / 1000
+  return `${roundedLat}:${roundedLng}:${fuel}:${radius}:${sort}`
+}
+
 // ─── API handler ───────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -172,6 +183,13 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // 캐시 확인
+  const cacheKey = getCacheKey(lat, lng, fuel, radius, sort)
+  const cached = cache.get(cacheKey)
+  if (cached && cached.expires > Date.now()) {
+    return NextResponse.json(cached.data)
+  }
+
   const [x, y] = wgs84ToTM128(lat, lng)
 
   const url = `http://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x.toFixed(0)}&y=${y.toFixed(0)}&radius=${radius}&prodcd=${fuel}&sort=${sort}`
@@ -210,7 +228,16 @@ export async function GET(request: NextRequest) {
       }),
     )
 
-    return NextResponse.json({ count: stations.length, stations })
+    const result = { count: stations.length, stations }
+
+    // 캐시 저장 (만료된 항목 정리 후)
+    const now = Date.now()
+    for (const [key, entry] of cache) {
+      if (entry.expires <= now) cache.delete(key)
+    }
+    cache.set(cacheKey, { data: result, expires: now + CACHE_TTL })
+
+    return NextResponse.json(result)
   } catch {
     return NextResponse.json(
       {
