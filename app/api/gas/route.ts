@@ -121,14 +121,14 @@ function wgs84ToTM128(lat: number, lng: number): [number, number] {
   return besselToTM128(besselPhi, besselLam)
 }
 
-// ─── Cache (30분 TTL) ──────────────────────────────────────────
-const CACHE_TTL = 30 * 60 * 1000
+// ─── Cache (1시간 TTL, ~1km 그리드 스냅) ───────────────────────
+const CACHE_TTL = 60 * 60 * 1000
 const cache = new Map<string, { data: unknown; expires: number }>()
 
 function getCacheKey(lat: number, lng: number, fuel: string, radius: number, sort: string) {
-  // 좌표를 소수점 3자리로 반올림해서 근접 요청도 캐시 히트되도록
-  const roundedLat = Math.round(lat * 1000) / 1000
-  const roundedLng = Math.round(lng * 1000) / 1000
+  // 좌표를 소수점 2자리로 반올림(~1km 그리드) → 같은 동네 유저끼리 캐시 공유
+  const roundedLat = Math.round(lat * 100) / 100
+  const roundedLng = Math.round(lng * 100) / 100
   return `${roundedLat}:${roundedLng}:${fuel}:${radius}:${sort}`
 }
 

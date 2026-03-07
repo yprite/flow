@@ -6,7 +6,6 @@ import {
   Fuel,
   Search,
   MapPin,
-  ArrowLeft,
   Loader2,
   AlertTriangle,
   BarChart3,
@@ -15,9 +14,10 @@ import {
   Trophy,
   Zap,
   Clock,
-  Users,
+  TrendingDown,
+  TrendingUp,
+  Newspaper,
 } from 'lucide-react'
-import Link from 'next/link'
 
 // ─── Types ─────────────────────────────────────────────────────
 interface Station {
@@ -29,6 +29,20 @@ interface Station {
   distance: number
 }
 
+interface AvgPrice {
+  fuel: string
+  name: string
+  price: number
+  diff: number
+}
+
+interface NewsItem {
+  title: string
+  link: string
+  date: string
+  source: string
+}
+
 // ─── Constants ─────────────────────────────────────────────────
 const FUEL_TYPES = [
   { code: 'B027', label: '휘발유', emoji: '\u26FD' },
@@ -36,6 +50,13 @@ const FUEL_TYPES = [
   { code: 'B034', label: '고급유', emoji: '\uD83D\uDC8E' },
   { code: 'K015', label: 'LPG', emoji: '\uD83D\uDCA8' },
 ]
+
+const FUEL_EMOJI: Record<string, string> = {
+  B027: '\u26FD',
+  D047: '\uD83D\uDE9B',
+  B034: '\uD83D\uDC8E',
+  K015: '\uD83D\uDCA8',
+}
 
 const RADIUS_OPTIONS = [
   { value: 1000, label: '1km', desc: '걸어갈 수 있는 거리' },
@@ -85,7 +106,7 @@ const LOADING_MESSAGES = [
   '기름값 비교하느라 머리 아픈 중...',
 ]
 
-const MARQUEE_TEXT =
+const FALLBACK_MARQUEE =
   '긴급속보 :: 기름값이 또 올랐습니다 :: 지갑이 울고 있습니다 :: 걸어다닐까 진지하게 고민 중 :: 자전거가 답인가 :: 전기차 사고 싶다 :: 버스비도 올랐잖아 :: 그냥 집에 있자'
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -149,6 +170,19 @@ function getRankBadge(
 
 function getNaverMapUrl(name: string): string {
   return `https://map.naver.com/v5/search/${encodeURIComponent(name + ' 주유소')}`
+}
+
+function relativeTime(dateStr: string): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 60) return `${mins}분 전`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}시간 전`
+    return `${Math.floor(hours / 24)}일 전`
+  } catch {
+    return ''
+  }
 }
 
 // ─── Animated Price ────────────────────────────────────────────
@@ -250,7 +284,7 @@ function SavingsAnalysis({ stations }: { stations: Station[] }) {
 
       <div className="grid grid-cols-3 gap-3 mb-5 relative z-20">
         <div className="bg-emerald-950/50 border border-emerald-800/50 rounded-xl p-4 text-center">
-          <TrendingDownIcon />
+          <div className="text-2xl">{'\uD83D\uDCC9'}</div>
           <div className="text-xl md:text-2xl font-black text-emerald-400 mt-1">
             <AnimatedPrice value={minPrice} delay={400} />
             <span className="text-sm">원</span>
@@ -258,7 +292,7 @@ function SavingsAnalysis({ stations }: { stations: Station[] }) {
           <div className="text-xs text-emerald-500 mt-1">최저가</div>
         </div>
         <div className="bg-rose-950/50 border border-rose-800/50 rounded-xl p-4 text-center">
-          <TrendingUpIcon />
+          <div className="text-2xl">{'\uD83D\uDCC8'}</div>
           <div className="text-xl md:text-2xl font-black text-rose-400 mt-1">
             <AnimatedPrice value={maxPrice} delay={400} />
             <span className="text-sm">원</span>
@@ -294,13 +328,6 @@ function SavingsAnalysis({ stations }: { stations: Station[] }) {
   )
 }
 
-function TrendingDownIcon() {
-  return <div className="text-2xl">{'\uD83D\uDCC9'}</div>
-}
-function TrendingUpIcon() {
-  return <div className="text-2xl">{'\uD83D\uDCC8'}</div>
-}
-
 // ─── Main Page ─────────────────────────────────────────────────
 export default function GasFinderPage() {
   const [fuel, setFuel] = useState('B027')
@@ -314,6 +341,8 @@ export default function GasFinderPage() {
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
   const [liveCount, setLiveCount] = useState(0)
+  const [averages, setAverages] = useState<AvgPrice[]>([])
+  const [news, setNews] = useState<NewsItem[]>([])
 
   // Geolocation
   useEffect(() => {
@@ -336,7 +365,24 @@ export default function GasFinderPage() {
     }
   }, [])
 
-  // Fake live counter (social proof dopamine)
+  // Fetch averages + news on mount
+  useEffect(() => {
+    fetch('/api/gas/average')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.averages) setAverages(data.averages)
+      })
+      .catch(() => {})
+
+    fetch('/api/news')
+      .then((r) => r.json())
+      .then((items) => {
+        if (Array.isArray(items) && items.length > 0) setNews(items)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Fake live counter
   useEffect(() => {
     setLiveCount(Math.floor(Math.random() * 80) + 140)
     const interval = setInterval(() => {
@@ -377,18 +423,17 @@ export default function GasFinderPage() {
 
   const maxPrice = stations.length > 0 ? Math.max(...stations.map((s) => s.price)) : 0
 
+  // Build marquee text from news or fallback
+  const marqueeText =
+    news.length > 0
+      ? news.map((n) => `${n.title} (${n.source})`).join(' :: ')
+      : FALLBACK_MARQUEE
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="relative overflow-hidden border-b border-slate-800">
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            돌아가기
-          </Link>
           <div className="flex items-center gap-3">
             <motion.div animate={{ rotate: [0, -10, 10, -5, 0] }} transition={{ duration: 0.6, delay: 0.3 }}>
               <Fuel className="w-10 h-10 text-rose-500" />
@@ -418,20 +463,118 @@ export default function GasFinderPage() {
         </div>
       </header>
 
-      {/* ── Marquee ────────────────────────────────────────── */}
+      {/* ── News Ticker ────────────────────────────────────── */}
       <div className="bg-rose-950/50 border-y border-rose-900/50 overflow-hidden">
-        <div className="flex whitespace-nowrap animate-marquee">
-          <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
-            {'\uD83D\uDEA8'} {MARQUEE_TEXT} &nbsp;&nbsp;&nbsp;
-          </span>
-          <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
-            {'\uD83D\uDEA8'} {MARQUEE_TEXT} &nbsp;&nbsp;&nbsp;
-          </span>
+        <div className="flex items-center">
+          {news.length > 0 && (
+            <div className="shrink-0 px-3 py-2 bg-rose-900/80 border-r border-rose-800/50 flex items-center gap-1">
+              <Newspaper className="w-3 h-3 text-rose-400" />
+              <span className="text-xs font-bold text-rose-300">유가 뉴스</span>
+            </div>
+          )}
+          <div className="flex-1 overflow-hidden">
+            <div className="flex whitespace-nowrap animate-marquee">
+              <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
+                {'\uD83D\uDEA8'} {marqueeText} &nbsp;&nbsp;&nbsp;
+              </span>
+              <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
+                {'\uD83D\uDEA8'} {marqueeText} &nbsp;&nbsp;&nbsp;
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Search Panel ───────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 py-8">
+        {/* ── News Headlines ───────────────────────────────── */}
+        {news.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl p-5"
+          >
+            <h2 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
+              <Newspaper className="w-4 h-4" />
+              유가 &middot; 국제 뉴스
+            </h2>
+            <div className="space-y-2">
+              {news.slice(0, 5).map((item, i) => (
+                <a
+                  key={i}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 group hover:bg-slate-800/50 rounded-lg p-2 -mx-2 transition-colors"
+                >
+                  <span className="text-rose-500 text-xs font-bold mt-0.5 shrink-0">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-slate-200 group-hover:text-white truncate transition-colors">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {item.source}
+                      {item.date && ` \u00B7 ${relativeTime(item.date)}`}
+                    </p>
+                  </div>
+                  <ExternalLink className="w-3 h-3 text-slate-700 group-hover:text-slate-400 mt-1 shrink-0 transition-colors" />
+                </a>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Average Prices ───────────────────────────────── */}
+        {averages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
+          >
+            <h2 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              전국 평균 기름값
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {averages.map((avg, i) => {
+                const isDown = avg.diff < 0
+                return (
+                  <motion.div
+                    key={avg.fuel}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center"
+                  >
+                    <div className="text-lg mb-1">{FUEL_EMOJI[avg.fuel] || '\u26FD'}</div>
+                    <div className="text-xs text-slate-500 mb-1">{avg.name}</div>
+                    <div className="text-xl font-black text-white">
+                      <AnimatedPrice value={Math.round(avg.price)} delay={i * 100} />
+                      <span className="text-xs text-slate-400">원</span>
+                    </div>
+                    <div
+                      className={`text-xs font-bold mt-1 flex items-center justify-center gap-0.5 ${
+                        isDown ? 'text-emerald-400' : 'text-rose-400'
+                      }`}
+                    >
+                      {isDown ? (
+                        <TrendingDown className="w-3 h-3" />
+                      ) : (
+                        <TrendingUp className="w-3 h-3" />
+                      )}
+                      {isDown ? '' : '+'}
+                      {avg.diff.toFixed(2)}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Search Panel ─────────────────────────────────── */}
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 mb-8">
           {/* Fuel Type */}
           <div className="mb-6">
@@ -459,9 +602,7 @@ export default function GasFinderPage() {
           {/* Radius & Sort */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">
-                반경
-              </label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">반경</label>
               <select
                 value={radius}
                 onChange={(e) => setRadius(Number(e.target.value))}
@@ -475,9 +616,7 @@ export default function GasFinderPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">
-                정렬
-              </label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">정렬</label>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
@@ -557,7 +696,7 @@ export default function GasFinderPage() {
                 주유소 발견
               </span>
               <span className="text-xs text-slate-600 flex items-center gap-1">
-                <Zap className="w-3 h-3" /> 30분마다 갱신
+                <Zap className="w-3 h-3" /> 1시간마다 갱신
               </span>
             </motion.div>
 
@@ -596,7 +735,7 @@ export default function GasFinderPage() {
                     {isFirst && <ConfettiBurst />}
 
                     <div className="p-4 relative z-20">
-                      {/* Top row: badge + drive time */}
+                      {/* Top: badge + drive time */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           {badge && (
@@ -624,7 +763,7 @@ export default function GasFinderPage() {
                         </div>
                       </div>
 
-                      {/* Station name + price (hero row) */}
+                      {/* Station name + price */}
                       <div className="flex items-end justify-between gap-3 mb-2">
                         <div className="min-w-0">
                           <h3 className="font-bold text-white text-lg truncate">
@@ -658,7 +797,7 @@ export default function GasFinderPage() {
                         />
                       </div>
 
-                      {/* Bottom row: reaction + distance + map link */}
+                      {/* Bottom: reaction + distance + map */}
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs text-slate-500 italic truncate flex-1">
                           {reaction}
@@ -685,7 +824,7 @@ export default function GasFinderPage() {
               })}
             </div>
 
-            {/* ── Savings Analysis ────────────────────────── */}
+            {/* Savings Analysis */}
             <SavingsAnalysis stations={stations} />
           </>
         )}
