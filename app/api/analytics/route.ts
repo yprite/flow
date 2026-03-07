@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       'unknown'
     const ua = req.headers.get('user-agent') || ''
 
-    trackPageView({
+    await trackPageView({
       path: body.path || '/',
       referrer: body.referrer || 'direct',
       userAgent: ua,
@@ -40,14 +40,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const stats = getStats()
+    const stats = await getStats()
     return NextResponse.json(stats)
   } catch (e) {
     const message = e instanceof Error ? e.message : '알 수 없는 오류'
     console.error('[analytics] getStats 실패:', message)
     return NextResponse.json(
       { error: `데이터 조회 실패: ${message}` },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
