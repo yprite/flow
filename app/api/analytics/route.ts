@@ -23,8 +23,10 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 400 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '알 수 없는 오류'
+    console.error('[analytics] trackPageView 실패:', message)
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
 
@@ -37,6 +39,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '인증 실패' }, { status: 401 })
   }
 
-  const stats = getStats()
-  return NextResponse.json(stats)
+  try {
+    const stats = getStats()
+    return NextResponse.json(stats)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '알 수 없는 오류'
+    console.error('[analytics] getStats 실패:', message)
+    return NextResponse.json(
+      { error: `데이터 조회 실패: ${message}` },
+      { status: 500 }
+    )
+  }
 }
