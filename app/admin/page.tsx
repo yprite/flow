@@ -62,17 +62,24 @@ export default function AdminPage() {
     setError('')
     try {
       const res = await fetch(`/api/analytics?user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`)
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || '인증 실패')
+      const text = await res.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        setError(`서버 응답 파싱 실패 (HTTP ${res.status})`)
         setAuthed(false)
         return
       }
-      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || `인증 실패 (HTTP ${res.status})`)
+        setAuthed(false)
+        return
+      }
       setStats(data)
       setAuthed(true)
-    } catch {
-      setError('서버 연결 실패')
+    } catch (e) {
+      setError(`서버 연결 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}`)
     } finally {
       setLoading(false)
     }
