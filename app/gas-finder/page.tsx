@@ -353,6 +353,27 @@ export default function GasFinderPage() {
   const [averages, setAverages] = useState<AvgPrice[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
 
+  // Analytics tracking
+  useEffect(() => {
+    const sessionId =
+      sessionStorage.getItem('sid') ||
+      (() => {
+        const id = Math.random().toString(36).slice(2) + Date.now().toString(36)
+        sessionStorage.setItem('sid', id)
+        return id
+      })()
+
+    fetch('/api/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: '/gas-finder',
+        referrer: document.referrer || 'direct',
+        sessionId,
+      }),
+    }).catch(() => {})
+  }, [])
+
   // Geolocation
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
