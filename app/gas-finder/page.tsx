@@ -11,6 +11,11 @@ import {
   AlertTriangle,
   BarChart3,
   Navigation,
+  ExternalLink,
+  Trophy,
+  Zap,
+  Clock,
+  Users,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -61,6 +66,17 @@ const BRAND_COMMENTS: Record<string, string> = {
   RTX: '이름없는 주유소의 반란!',
 }
 
+const BRAND_COLORS: Record<string, { border: string; bg: string; text: string }> = {
+  SKE: { border: 'border-l-red-500', bg: 'bg-red-500', text: 'text-red-400' },
+  GSC: { border: 'border-l-sky-500', bg: 'bg-sky-500', text: 'text-sky-400' },
+  HDO: { border: 'border-l-orange-500', bg: 'bg-orange-500', text: 'text-orange-400' },
+  SOL: { border: 'border-l-amber-400', bg: 'bg-amber-400', text: 'text-amber-400' },
+  NHO: { border: 'border-l-lime-500', bg: 'bg-lime-500', text: 'text-lime-400' },
+  RTE: { border: 'border-l-violet-500', bg: 'bg-violet-500', text: 'text-violet-400' },
+  RTX: { border: 'border-l-violet-500', bg: 'bg-violet-500', text: 'text-violet-400' },
+  ETC: { border: 'border-l-slate-500', bg: 'bg-slate-500', text: 'text-slate-400' },
+}
+
 const LOADING_MESSAGES = [
   '오피넷 서버에 물어보는 중...',
   '주유소 사장님들한테 가격 물어보는 중...',
@@ -109,36 +125,86 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`
 }
 
+function getDriveTime(meters: number): string {
+  if (meters <= 300) return '바로 앞'
+  if (meters <= 700) return '도보 5분'
+  if (meters <= 1000) return '차로 ~2분'
+  if (meters <= 2000) return '차로 ~4분'
+  if (meters <= 3000) return '차로 ~6분'
+  if (meters <= 5000) return '차로 ~10분'
+  return '차로 15분+'
+}
+
 function getRankBadge(
   rank: number,
-): { emoji: string; label: string; color: string } | null {
+): { emoji: string; label: string; gradient: string } | null {
   if (rank === 1)
-    return {
-      emoji: '\uD83D\uDC51',
-      label: '갓 최저가',
-      color: 'from-yellow-500 to-amber-500',
-    }
+    return { emoji: '\uD83D\uDC51', label: '갓 최저가', gradient: 'from-yellow-500 to-amber-500' }
   if (rank === 2)
-    return {
-      emoji: '\uD83E\uDD48',
-      label: '2등',
-      color: 'from-slate-300 to-slate-400',
-    }
+    return { emoji: '\uD83E\uDD48', label: '2등', gradient: 'from-slate-300 to-slate-400' }
   if (rank === 3)
-    return {
-      emoji: '\uD83E\uDD49',
-      label: '3등',
-      color: 'from-amber-600 to-orange-700',
-    }
+    return { emoji: '\uD83E\uDD49', label: '3등', gradient: 'from-amber-600 to-orange-700' }
   return null
 }
 
+function getNaverMapUrl(name: string): string {
+  return `https://map.naver.com/v5/search/${encodeURIComponent(name + ' 주유소')}`
+}
+
+// ─── Animated Price ────────────────────────────────────────────
+function AnimatedPrice({ value, delay = 0 }: { value: number; delay?: number }) {
+  const [display, setDisplay] = useState(0)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const duration = 900
+      const start = Date.now()
+      const tick = () => {
+        const elapsed = Date.now() - start
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setDisplay(Math.floor(value * eased))
+        if (progress < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    }, delay)
+    return () => clearTimeout(timeout)
+  }, [value, delay])
+
+  return <>{display.toLocaleString()}</>
+}
+
+// ─── Confetti Burst ────────────────────────────────────────────
+function ConfettiBurst() {
+  const colors = ['#f43f5e', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#f97316']
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+      {Array.from({ length: 20 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1.5 h-1.5 rounded-full"
+          style={{
+            left: '50%',
+            top: '40%',
+            backgroundColor: colors[i % colors.length],
+          }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+          animate={{
+            x: (Math.random() - 0.5) * 250,
+            y: (Math.random() - 0.5) * 150 - 30,
+            opacity: 0,
+            scale: Math.random() * 1.5 + 0.5,
+            rotate: Math.random() * 720,
+          }}
+          transition={{ duration: 1.2 + Math.random() * 0.8, ease: 'easeOut' }}
+        />
+      ))}
+    </div>
+  )
+}
+
 // ─── Savings Analysis ──────────────────────────────────────────
-function SavingsAnalysis({
-  stations,
-}: {
-  stations: Station[]
-}) {
+function SavingsAnalysis({ stations }: { stations: Station[] }) {
   if (stations.length < 2) return null
 
   const prices = stations.map((s) => s.price)
@@ -147,53 +213,92 @@ function SavingsAnalysis({
   const savingsWon = (maxPrice - minPrice) * 50
 
   let savingsComment: string
-  if (savingsWon > 5000)
+  let savingsEmoji: string
+  let savingsLevel: string
+  if (savingsWon > 5000) {
     savingsComment = '싼 데 가세요. 기름값 아끼면 치킨값!!!'
-  else if (savingsWon > 2000) savingsComment = '커피값 정도는 아낄 수 있네요~'
-  else if (savingsWon > 500) savingsComment = '뭐... 껌값 정도는 아낄 수 있음'
-  else savingsComment = '걍 가까운 데 가세요. 차이 없음 ㅋㅋ'
+    savingsEmoji = '\uD83C\uDF57'
+    savingsLevel = '치킨 달성!'
+  } else if (savingsWon > 2000) {
+    savingsComment = '커피값 정도는 아낄 수 있네요~'
+    savingsEmoji = '\u2615'
+    savingsLevel = '커피 달성!'
+  } else if (savingsWon > 500) {
+    savingsComment = '뭐... 껌값 정도는 아낄 수 있음'
+    savingsEmoji = '\uD83E\uDE9C'
+    savingsLevel = '껌 달성...'
+  } else {
+    savingsComment = '걍 가까운 데 가세요. 차이 없음 ㅋㅋ'
+    savingsEmoji = '\uD83E\uDD37'
+    savingsLevel = '의미없음'
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-900 border border-slate-800 rounded-2xl p-6"
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
+      className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden"
     >
-      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-amber-400" />
+      {savingsWon > 5000 && <ConfettiBurst />}
+
+      <h3 className="text-lg font-bold mb-5 flex items-center gap-2 relative z-20">
+        <Trophy className="w-5 h-5 text-amber-400" />
         가격 분석 리포트{' '}
         <span className="text-sm font-normal text-slate-500">(매우 진지)</span>
       </h3>
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-5 relative z-20">
         <div className="bg-emerald-950/50 border border-emerald-800/50 rounded-xl p-4 text-center">
-          <div className="text-xl md:text-2xl font-black text-emerald-400">
-            {minPrice.toLocaleString()}
+          <TrendingDownIcon />
+          <div className="text-xl md:text-2xl font-black text-emerald-400 mt-1">
+            <AnimatedPrice value={minPrice} delay={400} />
             <span className="text-sm">원</span>
           </div>
           <div className="text-xs text-emerald-500 mt-1">최저가</div>
         </div>
         <div className="bg-rose-950/50 border border-rose-800/50 rounded-xl p-4 text-center">
-          <div className="text-xl md:text-2xl font-black text-rose-400">
-            {maxPrice.toLocaleString()}
+          <TrendingUpIcon />
+          <div className="text-xl md:text-2xl font-black text-rose-400 mt-1">
+            <AnimatedPrice value={maxPrice} delay={400} />
             <span className="text-sm">원</span>
           </div>
           <div className="text-xs text-rose-500 mt-1">최고가</div>
         </div>
         <div className="bg-amber-950/50 border border-amber-800/50 rounded-xl p-4 text-center">
-          <div className="text-xl md:text-2xl font-black text-amber-400">
-            {savingsWon.toLocaleString()}
+          <motion.div
+            initial={{ scale: 1 }}
+            animate={savingsWon > 2000 ? { scale: [1, 1.2, 1] } : {}}
+            transition={{ delay: 1.5, duration: 0.5 }}
+            className="text-2xl"
+          >
+            {savingsEmoji}
+          </motion.div>
+          <div className="text-xl md:text-2xl font-black text-amber-400 mt-1">
+            <AnimatedPrice value={savingsWon} delay={600} />
             <span className="text-sm">원</span>
           </div>
-          <div className="text-xs text-amber-500 mt-1">50L 기준 절약</div>
+          <div className="text-xs text-amber-500 mt-1">50L 절약 ({savingsLevel})</div>
         </div>
       </div>
 
-      <p className="text-sm text-slate-400 text-center">
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="text-sm text-slate-400 text-center relative z-20"
+      >
         {savingsComment}
-      </p>
+      </motion.p>
     </motion.div>
   )
+}
+
+function TrendingDownIcon() {
+  return <div className="text-2xl">{'\uD83D\uDCC9'}</div>
+}
+function TrendingUpIcon() {
+  return <div className="text-2xl">{'\uD83D\uDCC8'}</div>
 }
 
 // ─── Main Page ─────────────────────────────────────────────────
@@ -201,42 +306,43 @@ export default function GasFinderPage() {
   const [fuel, setFuel] = useState('B027')
   const [radius, setRadius] = useState(2000)
   const [sort, setSort] = useState('1')
-  const [location, setLocation] = useState<{
-    lat: number
-    lng: number
-  } | null>(null)
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationStatus, setLocationStatus] = useState('위치 확인 중...')
   const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
+  const [liveCount, setLiveCount] = useState(0)
 
+  // Geolocation
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          })
+          setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
           setLocationStatus(
             `현재 위치 확인됨 (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
           )
         },
         () => {
           setLocation({ lat: 37.5665, lng: 126.978 })
-          setLocationStatus(
-            '위치 확인 실패 → 서울시청 기준으로 검색합니다',
-          )
+          setLocationStatus('위치 확인 실패 \u2192 서울시청 기준으로 검색합니다')
         },
       )
     } else {
       setLocation({ lat: 37.5665, lng: 126.978 })
-      setLocationStatus(
-        '위치 기능 미지원 → 서울시청 기준으로 검색합니다',
-      )
+      setLocationStatus('위치 기능 미지원 \u2192 서울시청 기준으로 검색합니다')
     }
+  }, [])
+
+  // Fake live counter (social proof dopamine)
+  useEffect(() => {
+    setLiveCount(Math.floor(Math.random() * 80) + 140)
+    const interval = setInterval(() => {
+      setLiveCount((prev) => prev + Math.floor(Math.random() * 3) - 1)
+    }, 4000 + Math.random() * 6000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleSearch = async () => {
@@ -269,8 +375,7 @@ export default function GasFinderPage() {
     }
   }
 
-  const maxPrice =
-    stations.length > 0 ? Math.max(...stations.map((s) => s.price)) : 0
+  const maxPrice = stations.length > 0 ? Math.max(...stations.map((s) => s.price)) : 0
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -285,7 +390,9 @@ export default function GasFinderPage() {
             돌아가기
           </Link>
           <div className="flex items-center gap-3">
-            <Fuel className="w-10 h-10 text-rose-500" />
+            <motion.div animate={{ rotate: [0, -10, 10, -5, 0] }} transition={{ duration: 0.6, delay: 0.3 }}>
+              <Fuel className="w-10 h-10 text-rose-500" />
+            </motion.div>
             <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">
               기름값 헌터
             </h1>
@@ -293,6 +400,21 @@ export default function GasFinderPage() {
           <p className="mt-3 text-slate-400 text-lg">
             월급은 통장을 스쳐가고... 기름값은 지갑을 관통한다
           </p>
+          {/* Live counter */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-950/50 border border-emerald-800/30 rounded-full"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs text-emerald-400">
+              지금 <span className="font-bold">{liveCount}</span>명이 기름값 비교 중
+            </span>
+          </motion.div>
         </div>
       </header>
 
@@ -318,8 +440,9 @@ export default function GasFinderPage() {
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {FUEL_TYPES.map((f) => (
-                <button
+                <motion.button
                   key={f.code}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setFuel(f.code)}
                   className={`px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     fuel === f.code
@@ -328,7 +451,7 @@ export default function GasFinderPage() {
                   }`}
                 >
                   {f.emoji} {f.label}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -373,7 +496,8 @@ export default function GasFinderPage() {
           </div>
 
           {/* Search Button */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={handleSearch}
             disabled={loading || !location}
             className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 cursor-pointer"
@@ -389,7 +513,7 @@ export default function GasFinderPage() {
                 싼 주유소 찾기 GO GO GO
               </>
             )}
-          </button>
+          </motion.button>
         </div>
 
         {/* ── Error ──────────────────────────────────────── */}
@@ -423,82 +547,139 @@ export default function GasFinderPage() {
         {/* ── Results ────────────────────────────────────── */}
         {stations.length > 0 && (
           <>
-            <div className="mb-4 text-slate-400 text-sm">
-              총{' '}
-              <span className="text-white font-bold">{stations.length}</span>개
-              주유소 발견
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center justify-between mb-4"
+            >
+              <span className="text-slate-400 text-sm">
+                총 <span className="text-white font-bold">{stations.length}</span>개
+                주유소 발견
+              </span>
+              <span className="text-xs text-slate-600 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> 30분마다 갱신
+              </span>
+            </motion.div>
 
             <div className="space-y-3 mb-8">
               {stations.map((station, index) => {
                 const badge = getRankBadge(station.rank)
-                const priceRatio =
-                  maxPrice > 0 ? (station.price / maxPrice) * 100 : 100
-                const brandName =
-                  BRAND_NAMES[station.brand] || station.brand
+                const priceRatio = maxPrice > 0 ? (station.price / maxPrice) * 100 : 100
+                const brandName = BRAND_NAMES[station.brand] || station.brand
                 const brandComment = BRAND_COMMENTS[station.brand] || ''
+                const brandColor = BRAND_COLORS[station.brand] || BRAND_COLORS.ETC
                 const reaction = getPriceReaction(station.price, fuel)
+                const isFirst = station.rank === 1
+                const driveTime = getDriveTime(station.distance)
 
                 return (
                   <motion.div
                     key={station.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors"
+                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      delay: index * 0.08,
+                      type: 'spring',
+                      stiffness: 120,
+                      damping: 14,
+                    }}
+                    className={`
+                      relative rounded-xl border-l-4 overflow-hidden
+                      ${brandColor.border}
+                      ${isFirst
+                        ? 'bg-slate-900 border border-emerald-800/50 animate-glow'
+                        : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
+                      }
+                      transition-colors
+                    `}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        {badge && (
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r ${badge.color} text-white shrink-0`}
-                          >
-                            {badge.emoji} {badge.label}
+                    {isFirst && <ConfettiBurst />}
+
+                    <div className="p-4 relative z-20">
+                      {/* Top row: badge + drive time */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {badge && (
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{
+                                delay: index * 0.08 + 0.2,
+                                type: 'spring',
+                                stiffness: 200,
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${badge.gradient} text-white shadow-lg`}
+                            >
+                              {badge.emoji} {badge.label}
+                            </motion.span>
+                          )}
+                          <span className={`w-2 h-2 rounded-full ${brandColor.bg}`} />
+                          <span className={`text-xs font-medium ${brandColor.text}`}>
+                            {brandName}
                           </span>
-                        )}
-                        <span className="font-bold text-white truncate">
-                          {station.name}
-                        </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                          <Clock className="w-3 h-3" />
+                          <span>{driveTime}</span>
+                        </div>
                       </div>
-                      <span className="text-2xl font-black text-emerald-400 shrink-0">
-                        {station.price.toLocaleString()}
-                        <span className="text-sm font-medium">원</span>
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-3 text-sm text-slate-400 mb-3 flex-wrap">
-                      <span>{brandName}</span>
-                      {brandComment && (
-                        <span className="text-slate-600 italic text-xs">
-                          &ldquo;{brandComment}&rdquo;
-                        </span>
-                      )}
-                      <span className="ml-auto flex items-center gap-1 shrink-0">
-                        <Navigation className="w-3 h-3" />
-                        {formatDistance(station.distance)}
-                      </span>
-                    </div>
+                      {/* Station name + price (hero row) */}
+                      <div className="flex items-end justify-between gap-3 mb-2">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-white text-lg truncate">
+                            {station.name}
+                          </h3>
+                          {brandComment && (
+                            <span className="text-slate-600 italic text-xs">
+                              &ldquo;{brandComment}&rdquo;
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`text-3xl font-black ${isFirst ? 'text-emerald-400' : 'text-white'}`}>
+                            <AnimatedPrice value={station.price} delay={index * 80} />
+                          </span>
+                          <span className={`text-sm font-medium ${isFirst ? 'text-emerald-500' : 'text-slate-400'}`}>
+                            원/L
+                          </span>
+                        </div>
+                      </div>
 
-                    {/* Price bar */}
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
-                      <motion.div
-                        className={`h-full rounded-full ${
-                          station.rank <= 3
-                            ? 'bg-emerald-500'
-                            : 'bg-slate-600'
-                        }`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${priceRatio}%` }}
-                        transition={{
-                          duration: 0.8,
-                          delay: index * 0.05,
-                        }}
-                      />
-                    </div>
+                      {/* Price bar */}
+                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-3">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            station.rank <= 3 ? 'bg-emerald-500' : 'bg-slate-600'
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${priceRatio}%` }}
+                          transition={{ duration: 1, delay: index * 0.08 + 0.3, ease: 'easeOut' }}
+                        />
+                      </div>
 
-                    <p className="text-xs text-slate-500 italic">
-                      {reaction}
-                    </p>
+                      {/* Bottom row: reaction + distance + map link */}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-slate-500 italic truncate flex-1">
+                          {reaction}
+                        </p>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <Navigation className="w-3 h-3" />
+                            {formatDistance(station.distance)}
+                          </span>
+                          <a
+                            href={getNaverMapUrl(station.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            길찾기
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 )
               })}
@@ -516,15 +697,9 @@ export default function GasFinderPage() {
             주유 꿀팁
           </h3>
           <ul className="space-y-2 text-sm text-slate-500">
-            <li>
-              {'>'} 셀프 주유소가 보통 더 쌉니다 (당연한 소리)
-            </li>
-            <li>
-              {'>'} 월요일에 기름값이 떨어진다는 건 도시전설입니다
-            </li>
-            <li>
-              {'>'} 이 사이트 보는 데이터 요금이 더 나올 수도 있음
-            </li>
+            <li>{'>'} 셀프 주유소가 보통 더 쌉니다 (당연한 소리)</li>
+            <li>{'>'} 월요일에 기름값이 떨어진다는 건 도시전설입니다</li>
+            <li>{'>'} 이 사이트 보는 데이터 요금이 더 나올 수도 있음</li>
           </ul>
           <p className="text-xs text-slate-600 mt-6">
             데이터 출처: 한국석유공사 오피넷 (opinet.co.kr)
