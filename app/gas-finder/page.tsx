@@ -341,6 +341,7 @@ export default function GasFinderPage() {
   const [fuel, setFuel] = useState('B027')
   const [radius, setRadius] = useState(2000)
   const [sort, setSort] = useState('1')
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set())
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationStatus, setLocationStatus] = useState('위치 확인 중...')
   const [stations, setStations] = useState<Station[]>([])
@@ -429,7 +430,24 @@ export default function GasFinderPage() {
     }
   }
 
-  const maxPrice = stations.length > 0 ? Math.max(...stations.map((s) => s.price)) : 0
+  const toggleBrand = (brand: string) => {
+    setSelectedBrands((prev) => {
+      const next = new Set(prev)
+      if (next.has(brand)) next.delete(brand)
+      else next.add(brand)
+      return next
+    })
+  }
+
+  // Filter stations by selected brands
+  const filteredStations =
+    selectedBrands.size === 0
+      ? stations
+      : stations.filter((s) => selectedBrands.has(s.brand))
+
+  const maxPrice = filteredStations.length > 0 ? Math.max(...filteredStations.map((s) => s.price)) : 0
+  const cheapestPrice = filteredStations.length > 0 ? Math.min(...filteredStations.map((s) => s.price)) : 0
+  const mostExpensivePrice = maxPrice
 
   // Build marquee text from news or fallback
   const marqueeText =
@@ -636,6 +654,34 @@ export default function GasFinderPage() {
             </div>
           </div>
 
+          {/* Brand Filter */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-400 mb-3">
+              브랜드 필터 <span className="text-slate-600 font-normal">(선택 안 하면 전체)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(BRAND_NAMES).map(([code, name]) => {
+                const isSelected = selectedBrands.has(code)
+                const color = BRAND_COLORS[code] || BRAND_COLORS.ETC
+                return (
+                  <motion.button
+                    key={code}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => toggleBrand(code)}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? `${color.bg} text-white shadow-lg`
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : color.bg}`} />
+                    {name}
+                  </motion.button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Location */}
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
             <MapPin className="w-4 h-4 shrink-0" />
@@ -692,7 +738,7 @@ export default function GasFinderPage() {
         )}
 
         {/* ── Results ────────────────────────────────────── */}
-        {stations.length > 0 && (
+        {filteredStations.length > 0 && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -700,8 +746,11 @@ export default function GasFinderPage() {
               className="flex items-center justify-between mb-4"
             >
               <span className="text-slate-400 text-sm">
-                총 <span className="text-white font-bold">{stations.length}</span>개
+                총 <span className="text-white font-bold">{filteredStations.length}</span>개
                 주유소 발견
+                {selectedBrands.size > 0 && (
+                  <span className="text-slate-600"> (전체 {stations.length}개 중)</span>
+                )}
               </span>
               <span className="text-xs text-slate-600 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> 1시간마다 갱신
@@ -709,14 +758,16 @@ export default function GasFinderPage() {
             </motion.div>
 
             <div className="space-y-3 mb-8">
-              {stations.map((station, index) => {
-                const badge = getRankBadge(station.rank)
+              {filteredStations.map((station, index) => {
+                const badge = getRankBadge(index + 1)
                 const priceRatio = maxPrice > 0 ? (station.price / maxPrice) * 100 : 100
                 const brandName = BRAND_NAMES[station.brand] || station.brand
                 const brandComment = BRAND_COMMENTS[station.brand] || ''
                 const brandColor = BRAND_COLORS[station.brand] || BRAND_COLORS.ETC
                 const reaction = getPriceReaction(station.price, fuel)
-                const isFirst = station.rank === 1
+                const isFirst = index === 0
+                const isCheapest = station.price === cheapestPrice
+                const isMostExpensive = station.price === mostExpensivePrice && filteredStations.length > 1
                 const driveTime = getDriveTime(station.distance)
 
                 return (
@@ -760,14 +811,31 @@ export default function GasFinderPage() {
                               {badge.emoji} {badge.label}
                             </motion.span>
                           )}
+                          {isCheapest && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              <TrendingDown className="w-3 h-3" />
+                              최저가
+                            </span>
+                          )}
+                          {isMostExpensive && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                              <TrendingUp className="w-3 h-3" />
+                              최고가
+                            </span>
+                          )}
                           <span className={`w-2 h-2 rounded-full ${brandColor.bg}`} />
                           <span className={`text-xs font-medium ${brandColor.text}`}>
                             {brandName}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                          <Clock className="w-3 h-3" />
-                          <span>{driveTime}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400">
+                            {index + 1}<span className="text-slate-600">/{filteredStations.length}등</span>
+                          </span>
+                          <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                            <Clock className="w-3 h-3" />
+                            <span>{driveTime}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -849,7 +917,7 @@ export default function GasFinderPage() {
             </div>
 
             {/* Savings Analysis */}
-            <SavingsAnalysis stations={stations} />
+            <SavingsAnalysis stations={filteredStations} />
           </>
         )}
 
