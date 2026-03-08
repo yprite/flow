@@ -117,9 +117,6 @@ export default function AdminPage() {
   const maxHourly = Math.max(...stats.today.hourly, 1)
   const maxTrendViews = Math.max(...stats.trend.map((t) => t.views), 1)
   const maxTrendDau = Math.max(...stats.trend.map((t) => t.dau), 1)
-  const trendLastIndex = stats.trend.length - 1
-  const trendLabelStep = stats.trend.length > 20 ? 5 : 3
-
   const totalReferrerCount = Object.values(stats.total.referrers).reduce((a, b) => a + b, 0) || 1
   const totalDeviceCount = Object.values(stats.today.devices).reduce((a, b) => a + b, 0) || 1
   const todaySearches = stats.today.topEvents.search_executed || 0
@@ -184,109 +181,11 @@ export default function AdminPage() {
         </div>
 
         {/* ── 30-Day Trend ─── */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-base font-bold text-white sm:text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-sky-400" />
-              30일 트렌드
-            </h2>
-            <div className="flex flex-wrap gap-4 text-sm text-slate-300">
-              <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-                페이지뷰
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                순 방문자
-              </span>
-            </div>
-          </div>
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[760px]">
-              <div className="flex items-end gap-2 h-56">
-                {stats.trend.map((day, index) => {
-                  const heightPV = (day.views / maxTrendViews) * 100
-                  const heightDAU = (day.dau / maxTrendDau) * 100
-                  const isToday = index === trendLastIndex
-                  const showTrendLabel =
-                    index === 0 || index === trendLastIndex || index % trendLabelStep === 0
-                  return (
-                    <div
-                      key={day.date}
-                      className="group relative flex h-full w-10 shrink-0 flex-col items-center gap-2"
-                    >
-                      <div className="flex h-full w-full items-end gap-1">
-                        <div
-                          className={`flex-1 rounded-t-md ${isToday ? 'bg-sky-400' : 'bg-sky-600/60'} transition-all`}
-                          style={{ height: `${heightPV}%`, minHeight: day.views > 0 ? '6px' : '0' }}
-                        />
-                        <div
-                          className={`flex-1 rounded-t-md ${isToday ? 'bg-emerald-400' : 'bg-emerald-600/60'} transition-all`}
-                          style={{ height: `${heightDAU}%`, minHeight: day.dau > 0 ? '6px' : '0' }}
-                        />
-                      </div>
-                      <span
-                        className={`text-[11px] font-medium ${
-                          showTrendLabel ? 'text-slate-400' : 'text-transparent'
-                        }`}
-                      >
-                        {showTrendLabel ? day.date.slice(5) : '00-00'}
-                      </span>
-                      <div className="absolute -top-20 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm shadow-xl group-hover:block">
-                        <div className="font-bold">{day.date.slice(5)}</div>
-                        <div className="text-sky-400">PV: {day.views}</div>
-                        <div className="text-emerald-400">DAU: {day.dau}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+        <TrendChartCard trend={stats.trend} maxTrendViews={maxTrendViews} maxTrendDau={maxTrendDau} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* ── Hourly Distribution ─── */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <h2 className="text-base font-bold text-white sm:text-lg">시간대별 접속 (오늘)</h2>
-              <span className="text-sm text-slate-400">0시부터 24시까지</span>
-            </div>
-            <div className="overflow-x-auto pb-2">
-              <div className="min-w-[640px]">
-                <div className="flex items-end gap-1.5 h-40">
-                  {stats.today.hourly.map((count, h) => {
-                    const height = (count / maxHourly) * 100
-                    const now = new Date().getHours()
-                    const showHourLabel = h === 0 || h === 23 || h % 3 === 0
-                    return (
-                      <div
-                        key={h}
-                        className="group relative flex h-full w-8 shrink-0 flex-col items-center gap-2"
-                      >
-                        <div
-                          className={`w-full rounded-t-md transition-all ${
-                            h === now ? 'bg-rose-500' : 'bg-slate-600'
-                          }`}
-                          style={{ height: `${height}%`, minHeight: count > 0 ? '6px' : '0' }}
-                        />
-                        <span
-                          className={`text-[11px] font-medium ${
-                            showHourLabel ? 'text-slate-400' : 'text-transparent'
-                          }`}
-                        >
-                          {showHourLabel ? `${h}시` : '00시'}
-                        </span>
-                        <div className="absolute -top-10 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm shadow-xl group-hover:block">
-                          {h}시: {count}건
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+          <HourlyChartCard hourly={stats.today.hourly} maxHourly={maxHourly} />
 
           {/* ── Referrer Sources ─── */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
@@ -430,4 +329,351 @@ function SummaryCard({
       <div className="text-xs text-slate-600 mt-1">{sub}</div>
     </div>
   )
+}
+
+interface ChartPoint {
+  x: number
+  y: number
+  label: string
+  value: number
+}
+
+const TREND_CHART_SIZE = {
+  width: 720,
+  height: 240,
+  padding: { top: 18, right: 18, bottom: 34, left: 12 },
+}
+
+const HOURLY_CHART_SIZE = {
+  width: 720,
+  height: 210,
+  padding: { top: 18, right: 18, bottom: 34, left: 12 },
+}
+
+function TrendChartCard({
+  trend,
+  maxTrendViews,
+  maxTrendDau,
+}: {
+  trend: TrendItem[]
+  maxTrendViews: number
+  maxTrendDau: number
+}) {
+  if (trend.length === 0) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+          <TrendingUp className="h-5 w-5 text-sky-400" />
+          30일 트렌드
+        </h2>
+        <p className="mt-6 text-sm text-slate-500">표시할 추세 데이터가 아직 없습니다.</p>
+      </div>
+    )
+  }
+
+  const chartMax = Math.max(maxTrendViews, maxTrendDau, 1)
+  const step = trend.length > 18 ? 5 : 3
+  const viewsPoints = createLinePoints(
+    trend.map((item) => item.views),
+    trend.map((item) => formatChartDate(item.date)),
+    chartMax,
+    TREND_CHART_SIZE
+  )
+  const dauPoints = createLinePoints(
+    trend.map((item) => item.dau),
+    trend.map((item) => formatChartDate(item.date)),
+    chartMax,
+    TREND_CHART_SIZE
+  )
+  const trendPathViews = buildLinePath(viewsPoints)
+  const trendPathDau = buildLinePath(dauPoints)
+  const xLabels = viewsPoints.filter(
+    (_, index) => index === 0 || index === viewsPoints.length - 1 || index % step === 0
+  )
+  const peakViews = trend.reduce((best, item) => (item.views > best.views ? item : best), trend[0])
+  const peakDau = trend.reduce((best, item) => (item.dau > best.dau ? item : best), trend[0])
+  const latest = trend[trend.length - 1]
+
+  return (
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+            <TrendingUp className="h-5 w-5 text-sky-400" />
+            30일 트렌드
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            30개 날짜를 막대 대신 선으로 압축해 흐름을 먼저 보이고, 라벨은 필요한 지점만 남겼습니다.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ChartStat label="최고 PV" value={`${peakViews.views} · ${formatChartDate(peakViews.date)}`} tone="sky" />
+          <ChartStat label="최고 DAU" value={`${peakDau.dau} · ${formatChartDate(peakDau.date)}`} tone="emerald" />
+          <ChartStat label="오늘" value={`PV ${latest.views} / DAU ${latest.dau}`} tone="slate" />
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
+          <span>0</span>
+          <span>최대 {chartMax}</span>
+        </div>
+        <svg
+          viewBox={`0 0 ${TREND_CHART_SIZE.width} ${TREND_CHART_SIZE.height}`}
+          className="h-56 w-full"
+          aria-label="지난 30일 PV와 DAU 선형 차트"
+          role="img"
+        >
+          {createGridLines(TREND_CHART_SIZE, 4).map((y) => (
+            <line
+              key={y}
+              x1={TREND_CHART_SIZE.padding.left}
+              x2={TREND_CHART_SIZE.width - TREND_CHART_SIZE.padding.right}
+              y1={y}
+              y2={y}
+              stroke="rgba(148, 163, 184, 0.18)"
+              strokeWidth="1"
+            />
+          ))}
+
+          {xLabels.map((point) => (
+            <text
+              key={point.label}
+              x={point.x}
+              y={TREND_CHART_SIZE.height - 8}
+              textAnchor="middle"
+              fontSize="11"
+              fill="rgb(148 163 184)"
+            >
+              {point.label}
+            </text>
+          ))}
+
+          <path
+            d={trendPathViews}
+            fill="none"
+            stroke="rgb(56 189 248)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d={trendPathDau}
+            fill="none"
+            stroke="rgb(52 211 153)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {viewsPoints.map((point, index) => (
+            <circle
+              key={`views-${point.label}`}
+              cx={point.x}
+              cy={point.y}
+              r={index === viewsPoints.length - 1 ? 4.5 : 3}
+              fill="rgb(56 189 248)"
+            >
+              <title>{`${point.label} PV ${trend[index].views}`}</title>
+            </circle>
+          ))}
+
+          {dauPoints.map((point, index) => (
+            <circle
+              key={`dau-${point.label}`}
+              cx={point.x}
+              cy={point.y}
+              r={index === dauPoints.length - 1 ? 4.5 : 3}
+              fill="rgb(52 211 153)"
+            >
+              <title>{`${point.label} DAU ${trend[index].dau}`}</title>
+            </circle>
+          ))}
+        </svg>
+
+        <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-300">
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+            페이지뷰
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            순 방문자
+          </span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HourlyChartCard({
+  hourly,
+  maxHourly,
+}: {
+  hourly: number[]
+  maxHourly: number
+}) {
+  if (hourly.length === 0) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+        <h2 className="text-lg font-bold text-white">시간대별 접속 (오늘)</h2>
+        <p className="mt-6 text-sm text-slate-500">시간대 데이터가 아직 없습니다.</p>
+      </div>
+    )
+  }
+
+  const slotWidth =
+    (HOURLY_CHART_SIZE.width - HOURLY_CHART_SIZE.padding.left - HOURLY_CHART_SIZE.padding.right) /
+    hourly.length
+  const barWidth = Math.max(slotWidth * 0.58, 10)
+  const peakHour = hourly.findIndex((count) => count === maxHourly)
+  const currentHour = new Date().getHours()
+  const hourLabels = new Set([0, 6, 12, 18, hourly.length - 1])
+
+  return (
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">시간대별 접속 (오늘)</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            레이블은 3시간 간격만 노출하고, 피크 시간과 현재 시간을 색으로 구분했습니다.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ChartStat label="피크 시간" value={`${peakHour}시 · ${maxHourly}건`} tone="rose" />
+          <ChartStat label="현재 시각" value={`${currentHour}시`} tone="slate" />
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-3 sm:p-4">
+        <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
+          <span>0</span>
+          <span>최대 {maxHourly}</span>
+        </div>
+        <svg
+          viewBox={`0 0 ${HOURLY_CHART_SIZE.width} ${HOURLY_CHART_SIZE.height}`}
+          className="h-48 w-full"
+          aria-label="오늘 시간대별 접속 막대 차트"
+          role="img"
+        >
+          {createGridLines(HOURLY_CHART_SIZE, 4).map((y) => (
+            <line
+              key={y}
+              x1={HOURLY_CHART_SIZE.padding.left}
+              x2={HOURLY_CHART_SIZE.width - HOURLY_CHART_SIZE.padding.right}
+              y1={y}
+              y2={y}
+              stroke="rgba(148, 163, 184, 0.18)"
+              strokeWidth="1"
+            />
+          ))}
+
+          {hourly.map((count, hour) => {
+            const x = HOURLY_CHART_SIZE.padding.left + hour * slotWidth + (slotWidth - barWidth) / 2
+            const y = scaleValueToY(count, maxHourly, HOURLY_CHART_SIZE)
+            const height = HOURLY_CHART_SIZE.height - HOURLY_CHART_SIZE.padding.bottom - y
+            const fill =
+              hour === peakHour
+                ? 'rgb(244 63 94)'
+                : hour === currentHour
+                  ? 'rgb(251 146 60)'
+                  : 'rgb(100 116 139)'
+
+            return (
+              <g key={hour}>
+                <rect x={x} y={y} width={barWidth} height={Math.max(height, 4)} rx="6" fill={fill}>
+                  <title>{`${hour}시: ${count}건`}</title>
+                </rect>
+                {hourLabels.has(hour) && (
+                  <text
+                    x={x + barWidth / 2}
+                    y={HOURLY_CHART_SIZE.height - 8}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="rgb(148 163 184)"
+                  >
+                    {hour === hourly.length - 1 ? '24시' : `${hour}시`}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    </section>
+  )
+}
+
+function ChartStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone: 'sky' | 'emerald' | 'rose' | 'slate'
+}) {
+  const toneClasses: Record<typeof tone, string> = {
+    sky: 'border-sky-900/70 bg-sky-950/40 text-sky-200',
+    emerald: 'border-emerald-900/70 bg-emerald-950/40 text-emerald-200',
+    rose: 'border-rose-900/70 bg-rose-950/40 text-rose-200',
+    slate: 'border-slate-800 bg-slate-950/40 text-slate-200',
+  }
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${toneClasses[tone]}`}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
+  )
+}
+
+function formatChartDate(value: string) {
+  if (value.length < 10) return value
+  return value.slice(5).replace('-', '.')
+}
+
+function createLinePoints(
+  values: number[],
+  labels: string[],
+  maxValue: number,
+  chartSize: { width: number; height: number; padding: { top: number; right: number; bottom: number; left: number } }
+) {
+  const usableWidth = chartSize.width - chartSize.padding.left - chartSize.padding.right
+
+  return values.map((value, index) => ({
+    x:
+      values.length === 1
+        ? chartSize.padding.left + usableWidth / 2
+        : chartSize.padding.left + (usableWidth * index) / (values.length - 1),
+    y: scaleValueToY(value, maxValue, chartSize),
+    label: labels[index] ?? `${index + 1}`,
+    value,
+  }))
+}
+
+function scaleValueToY(
+  value: number,
+  maxValue: number,
+  chartSize: { width: number; height: number; padding: { top: number; right: number; bottom: number; left: number } }
+) {
+  const safeMax = Math.max(maxValue, 1)
+  const usableHeight = chartSize.height - chartSize.padding.top - chartSize.padding.bottom
+  return chartSize.padding.top + usableHeight - (value / safeMax) * usableHeight
+}
+
+function buildLinePath(points: ChartPoint[]) {
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+}
+
+function createGridLines(
+  chartSize: { width: number; height: number; padding: { top: number; right: number; bottom: number; left: number } },
+  count: number
+) {
+  const usableHeight = chartSize.height - chartSize.padding.top - chartSize.padding.bottom
+
+  return Array.from({ length: count }, (_, index) => {
+    if (count === 1) return chartSize.padding.top + usableHeight / 2
+    return chartSize.padding.top + (usableHeight * index) / (count - 1)
+  })
 }
