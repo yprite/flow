@@ -30,6 +30,8 @@ interface Station {
   brand: string
   price: number
   distance: number
+  history: StationHistoryPoint[]
+  priceChange: number | null
 }
 
 interface AvgPrice {
@@ -37,6 +39,11 @@ interface AvgPrice {
   name: string
   price: number
   diff: number
+}
+
+interface StationHistoryPoint {
+  date: string
+  price: number
 }
 
 // ─── Constants ─────────────────────────────────────────────────
@@ -153,6 +160,107 @@ function getDriveTime(meters: number): string {
   if (meters <= 3000) return '차로 ~6분'
   if (meters <= 5000) return '차로 ~10분'
   return '차로 15분+'
+}
+
+function formatTrendDate(date: string): string {
+  return date.length >= 10 ? date.slice(5).replace('-', '.') : date
+}
+
+function formatPriceDelta(delta: number | null): string {
+  if (delta === null) return '비교 데이터 없음'
+  if (delta === 0) return '전일과 동일'
+  return `${delta > 0 ? '+' : ''}${delta.toLocaleString()}원`
+}
+
+function StationTrendPanel({
+  history,
+  priceChange,
+}: {
+  history: StationHistoryPoint[]
+  priceChange: number | null
+}) {
+  if (history.length < 2) {
+    return (
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          최근 관측 추이
+        </span>
+        <span className="text-[11px] text-slate-500">수집 중</span>
+      </div>
+    )
+  }
+
+  const minPrice = Math.min(...history.map((point) => point.price))
+  const maxPrice = Math.max(...history.map((point) => point.price))
+  const range = Math.max(maxPrice - minPrice, 1)
+  const lastPoint = history[history.length - 1]
+  const firstPoint = history[0]
+  const path = history
+    .map((point, index) => {
+      const x = history.length === 1 ? 6 : (index / (history.length - 1)) * 100
+      const y = 28 - ((point.price - minPrice) / range) * 28
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
+    })
+    .join(' ')
+
+  const tone =
+    priceChange === null ? 'slate' : priceChange < 0 ? 'emerald' : priceChange > 0 ? 'rose' : 'slate'
+  const toneClass =
+    tone === 'emerald'
+      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+      : tone === 'rose'
+        ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+        : 'border-slate-700 bg-slate-800/70 text-slate-300'
+
+  return (
+    <div className="mb-3 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            최근 관측 추이
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            {formatTrendDate(firstPoint.date)} ~ {formatTrendDate(lastPoint.date)} · {history.length}일 관측
+          </div>
+        </div>
+        <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold ${toneClass}`}>
+          {formatPriceDelta(priceChange)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-end gap-3">
+        <svg viewBox="0 0 100 28" className="h-8 flex-1 overflow-visible" aria-label="주유소 가격 추이">
+          <path
+            d={path}
+            fill="none"
+            stroke="rgb(34 197 94)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {history.map((point, index) => {
+            const x = history.length === 1 ? 6 : (index / (history.length - 1)) * 100
+            const y = 28 - ((point.price - minPrice) / range) * 28
+            return (
+              <circle
+                key={`${point.date}-${point.price}`}
+                cx={x}
+                cy={y}
+                r={index === history.length - 1 ? 2.5 : 1.8}
+                fill={index === history.length - 1 ? 'rgb(16 185 129)' : 'rgb(100 116 139)'}
+              >
+                <title>{`${formatTrendDate(point.date)} ${point.price.toLocaleString()}원`}</title>
+              </circle>
+            )
+          })}
+        </svg>
+        <div className="shrink-0 text-right text-[11px] text-slate-500">
+          <div>최고 {maxPrice.toLocaleString()}</div>
+          <div>최저 {minPrice.toLocaleString()}</div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function getRankBadge(
@@ -727,15 +835,20 @@ export default function GasFinderPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center justify-between mb-4"
+              className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="text-slate-400 text-sm">
-                총 <span className="text-white font-bold">{filteredStations.length}</span>개
-                주유소 발견
-                {selectedBrands.size > 0 && (
-                  <span className="text-slate-600"> (전체 {stations.length}개 중)</span>
-                )}
-              </span>
+              <div>
+                <span className="text-slate-400 text-sm">
+                  총 <span className="text-white font-bold">{filteredStations.length}</span>개
+                  주유소 발견
+                  {selectedBrands.size > 0 && (
+                    <span className="text-slate-600"> (전체 {stations.length}개 중)</span>
+                  )}
+                </span>
+                <p className="mt-1 text-[11px] text-slate-600">
+                  일별 추이는 오피넷 원본 이력이 아니라 이 서비스가 최근에 관측한 가격 기준입니다.
+                </p>
+              </div>
               <span className="text-xs text-slate-600 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> 1시간마다 갱신
               </span>
@@ -857,12 +970,14 @@ export default function GasFinderPage() {
                         />
                       </div>
 
+                      <StationTrendPanel history={station.history} priceChange={station.priceChange} />
+
                       {/* Bottom: reaction + distance + map */}
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <p className="text-xs text-slate-500 italic truncate flex-1">
                           {reaction}
                         </p>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 shrink-0 lg:gap-3">
                           <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Navigation className="w-3 h-3" />
                             {formatDistance(station.distance)}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hydrateStationPriceHistory } from '@/lib/station-history-db'
 
 // ─── WGS84 ellipsoid ───────────────────────────────────────────
 const WGS84_A = 6378137.0
@@ -228,7 +229,8 @@ export async function GET(request: NextRequest) {
       }),
     )
 
-    const result = { count: stations.length, stations }
+    const stationsWithHistory = await hydrateStationPriceHistory(fuel, stations)
+    const result = { count: stationsWithHistory.length, stations: stationsWithHistory }
 
     // 캐시 저장 (만료된 항목 정리 후)
     const now = Date.now()
