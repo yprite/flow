@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Gauge, MapPinned, Radar, TrendingDown } from 'lucide-react'
+import { AdsenseSlot } from '@/components/adsense-slot'
 import { OilNewsSection } from '@/components/oil-news-section'
 import { PageViewTracker } from '@/components/page-view-tracker'
 import { ServiceShareButton } from '@/components/service-share-button'
+import { SiteFooter } from '@/components/site-footer'
+import { getAdsenseSlot } from '@/lib/adsense'
+import { GUIDES } from '@/lib/guides'
 import { SEO_REGIONS } from '@/lib/regions'
 import {
   DEFAULT_DESCRIPTION,
@@ -52,6 +56,7 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
+  const homeInlineAdSlot = getAdsenseSlot('homeInline')
   const structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -185,6 +190,49 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="rounded-[32px] border border-white/8 bg-slate-950/70 p-6 md:p-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
+                Driver Guides
+              </p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight">
+                툴만 보고 끝내지 않도록, 판단 기준도 같이 제공합니다
+              </h2>
+              <p className="mt-3 max-w-2xl text-slate-300">
+                평균 유가 해석, 장거리 주유 루틴, 알뜰주유소 비교처럼 실제 운전자
+                의사결정에 필요한 가이드를 별도 콘텐츠로 정리했습니다.
+              </p>
+            </div>
+            <Link
+              href="/guides"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-200 hover:text-white"
+            >
+              전체 가이드 보기
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {GUIDES.slice(0, 3).map((guide) => (
+              <Link
+                key={guide.slug}
+                href={`/guides/${guide.slug}`}
+                className="rounded-2xl border border-white/8 bg-white/5 p-5 transition-transform hover:-translate-y-1 hover:border-emerald-400/40"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
+                  {guide.category}
+                </p>
+                <h3 className="mt-3 text-2xl font-black tracking-tight">{guide.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-400">{guide.description}</p>
+                <div className="mt-5 text-sm font-semibold text-emerald-200">
+                  {guide.readingTime} 읽기
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <AdsenseSlot slot={homeInlineAdSlot} />
+
         <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-[28px] border border-white/8 bg-slate-950/70 p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
@@ -214,6 +262,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        <SiteFooter />
       </section>
     </main>
   )

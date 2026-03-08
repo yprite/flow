@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
+import { getAdsenseClientId } from '@/lib/adsense'
 import {
   DEFAULT_DESCRIPTION,
   DEFAULT_KEYWORDS,
@@ -39,9 +41,27 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const adsenseClientId = getAdsenseClientId()
+
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <head>
+        {adsenseClientId ? (
+          <meta name="google-adsense-account" content={adsenseClientId} />
+        ) : null}
+      </head>
+      <body className="antialiased">
+        {children}
+        {adsenseClientId ? (
+          <Script
+            async
+            crossOrigin="anonymous"
+            id="google-adsense"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            strategy="afterInteractive"
+          />
+        ) : null}
+      </body>
     </html>
   )
 }

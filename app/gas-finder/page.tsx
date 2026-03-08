@@ -19,6 +19,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { ServiceShareButton } from '@/components/service-share-button'
+import { SiteFooter } from '@/components/site-footer'
 import { trackEvent, trackPageView } from '@/lib/analytics-client'
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -921,6 +922,7 @@ export default function GasFinderPage() {
           <p className="text-xs text-slate-600 mt-6">
             데이터 출처: 한국석유공사 오피넷 (opinet.co.kr)
           </p>
+          <SiteFooter className="mt-6" />
         </footer>
       </main>
     </div>

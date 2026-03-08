@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { ChevronRight, MapPinned, Sparkles, TrendingDown } from 'lucide-react'
 import { PageViewTracker } from '@/components/page-view-tracker'
 import { ServiceShareButton } from '@/components/service-share-button'
+import { SiteFooter } from '@/components/site-footer'
+import { getRelatedGuidesForRegion } from '@/lib/guides'
 import { SEO_REGIONS, getSeoRegion } from '@/lib/regions'
 import { SITE_NAME, absoluteUrl } from '@/lib/site'
 
@@ -21,7 +23,7 @@ export async function generateMetadata({
   if (!region) return {}
 
   const title = `${region.name} 기름값 찾기 | ${SITE_NAME}`
-  const description = `${region.fullName} 기준으로 근처 최저가 주유소와 평균 기름값을 빠르게 비교하세요. ${region.popularAreas.join(', ')} 운전자 검색 의도에 맞춘 랜딩입니다.`
+  const description = `${region.fullName} 기준으로 근처 최저가 주유소와 평균 기름값을 빠르게 비교하세요. ${region.averagePriceContext}`
   const path = `/regions/${region.slug}`
 
   return {
@@ -70,6 +72,7 @@ export default async function RegionIntentPage({
       preset: region.slug,
     },
   }
+  const relatedGuides = getRelatedGuidesForRegion(region.slug)
 
   const structuredData = {
     '@context': 'https://schema.org',
@@ -146,8 +149,9 @@ export default async function RegionIntentPage({
             비싼 주유소를 피하는 가장 빠른 방법
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-            {region.summary} {region.popularAreas.join(', ')}처럼 이동량이 많은 생활권을
-            기준으로, 최저가 주유소를 바로 확인할 수 있게 구성했습니다.
+            {region.summary} {region.driverContext} {region.popularAreas.join(', ')}처럼
+            이동량이 많은 생활권을 기준으로, 최저가 주유소를 바로 확인할 수 있게
+            구성했습니다.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -193,19 +197,63 @@ export default async function RegionIntentPage({
                 주유소"처럼 검색하는 사용자는 당장 어디서 넣을지 결정하려는 경우가 많습니다.
               </p>
               <p>
-                그래서 이 페이지는 설명보다 행동을 앞에 둡니다. {region.centerLabel}
-                기준 좌표를 미리 넣고 검색 화면으로 보내기 때문에 첫 클릭 이후 바로 결과를
-                확인할 수 있습니다.
+                {region.driverContext} 그래서 이 페이지는 설명보다 행동을 앞에 둡니다.
+                {region.centerLabel} 기준 좌표를 미리 넣고 검색 화면으로 보내기 때문에 첫
+                클릭 이후 바로 결과를 확인할 수 있습니다.
               </p>
               <p>
-                특히 {region.popularAreas.join(', ')}처럼 생활권 이동이 잦은 지역은 반경
-                3km 안에서도 가격 차이가 발생하므로 검색 가치가 큽니다.
+                {region.radiusStrategy}
               </p>
             </div>
           </section>
 
           <section className="rounded-[28px] border border-white/8 bg-slate-950/70 p-6">
-            <h2 className="text-2xl font-black tracking-tight">이 페이지가 다루는 키워드</h2>
+            <h2 className="text-2xl font-black tracking-tight">
+              {region.name}에서 평균가를 읽는 법
+            </h2>
+            <div className="mt-4 space-y-4 text-slate-300">
+              <p>{region.averagePriceContext}</p>
+              <p>
+                특히 {region.popularAreas.join(', ')}처럼 자주 찾는 생활권은 평균보다 몇
+                원 싼지보다, 지금 가는 방향 안에서 경쟁력 있는 후보를 남기는 쪽이 더
+                실용적입니다.
+              </p>
+            </div>
+          </section>
+        </div>
+
+        <section className="mt-8 rounded-[28px] border border-white/8 bg-slate-950/70 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200/80">
+                Local Tips
+              </p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight">
+                {region.name} 생활권 체크포인트
+              </h2>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-slate-400">
+              지역별로 자주 찾는 권역과 이동 습관이 다르기 때문에, 아래 체크포인트를
+              먼저 보는 편이 빠릅니다.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {region.localTips.map((tip, index) => (
+              <div
+                key={tip}
+                className="rounded-2xl border border-white/8 bg-white/5 p-5"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/80">
+                  Checkpoint 0{index + 1}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-300">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-[28px] border border-white/8 bg-slate-950/70 p-6">
+          <h2 className="text-2xl font-black tracking-tight">이 페이지가 다루는 키워드</h2>
             <div className="mt-5 flex flex-wrap gap-2">
               {[
                 `${region.name} 기름값`,
@@ -223,8 +271,49 @@ export default async function RegionIntentPage({
                 </span>
               ))}
             </div>
+        </section>
+
+        {relatedGuides.length > 0 ? (
+          <section className="mt-8 rounded-[28px] border border-white/8 bg-slate-950/70 p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
+                  Related Guides
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-tight">
+                  {region.name} 운전자에게 같이 필요한 가이드
+                </h2>
+                <p className="mt-3 max-w-2xl text-slate-300">
+                  검색 전에 판단 기준을 먼저 잡고 싶다면 아래 가이드부터 보는 편이
+                  좋습니다.
+                </p>
+              </div>
+              <Link
+                href="/guides"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-200 hover:text-white"
+              >
+                전체 가이드 보기
+              </Link>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {relatedGuides.map((guide) => (
+                <Link
+                  key={guide.slug}
+                  href={`/guides/${guide.slug}`}
+                  className="rounded-2xl border border-white/8 bg-white/5 p-5 transition-transform hover:-translate-y-1 hover:border-emerald-400/40"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
+                    {guide.category}
+                  </p>
+                  <h3 className="mt-3 text-xl font-black tracking-tight">{guide.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">{guide.description}</p>
+                </Link>
+              ))}
+            </div>
           </section>
-        </div>
+        ) : null}
+
+        <SiteFooter className="mt-12" />
       </section>
     </main>
   )
