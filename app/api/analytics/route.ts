@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { trackPageView, getStats } from '@/lib/analytics-db'
-
-const ADMIN_USER = 'yprite'
-const ADMIN_PASS = '12345'
+import { trackEvent, trackPageView, getStats } from '@/lib/analytics-db'
 
 // POST /api/analytics — track a page view
 export async function POST(req: NextRequest) {
@@ -14,13 +11,23 @@ export async function POST(req: NextRequest) {
       'unknown'
     const ua = req.headers.get('user-agent') || ''
 
-    await trackPageView({
+    const common = {
       path: body.path || '/',
       referrer: body.referrer || 'direct',
       userAgent: ua,
       ip,
       sessionId: body.sessionId || ip,
-    })
+    }
+
+    if (body.type === 'event' || body.name) {
+      await trackEvent({
+        ...common,
+        name: body.name || 'unknown_event',
+        metadata: body.metadata || {},
+      })
+    } else {
+      await trackPageView(common)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (e) {
@@ -30,15 +37,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/analytics?user=xxx&pass=xxx — get stats (admin only)
+// GET /api/analytics — get stats
 export async function GET(req: NextRequest) {
-  const user = req.nextUrl.searchParams.get('user')
-  const pass = req.nextUrl.searchParams.get('pass')
-
-  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
-    return NextResponse.json({ error: '인증 실패' }, { status: 401 })
-  }
-
   try {
     const stats = await getStats()
     return NextResponse.json(stats)

@@ -9,10 +9,9 @@ import {
   Monitor,
   Globe,
   TrendingUp,
-  LogIn,
   RefreshCw,
   Activity,
-  Lock,
+  Search,
 } from 'lucide-react'
 
 interface RealtimeData {
@@ -27,6 +26,7 @@ interface TodayData {
   topReferrers: Record<string, number>
   topPaths: Record<string, number>
   devices: Record<string, number>
+  topEvents: Record<string, number>
 }
 
 interface TotalData {
@@ -34,6 +34,7 @@ interface TotalData {
   uniqueVisitors: number
   referrers: Record<string, number>
   devices: Record<string, number>
+  events: Record<string, number>
 }
 
 interface TrendItem {
@@ -50,9 +51,6 @@ interface Stats {
 }
 
 export default function AdminPage() {
-  const [user, setUser] = useState('')
-  const [pass, setPass] = useState('')
-  const [authed, setAuthed] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -61,91 +59,60 @@ export default function AdminPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/analytics?user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`)
+      const res = await fetch('/api/analytics')
       const text = await res.text()
       let data
       try {
         data = JSON.parse(text)
       } catch {
         setError(`서버 응답 파싱 실패 (HTTP ${res.status})`)
-        setAuthed(false)
         return
       }
       if (!res.ok) {
-        setError(data.error || `인증 실패 (HTTP ${res.status})`)
-        setAuthed(false)
+        setError(data.error || `조회 실패 (HTTP ${res.status})`)
         return
       }
       setStats(data)
-      setAuthed(true)
     } catch (e) {
       setError(`서버 연결 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}`)
     } finally {
       setLoading(false)
     }
-  }, [user, pass])
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   // Auto-refresh every 30s
   useEffect(() => {
-    if (!authed) return
+    if (!stats) return
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
-  }, [authed, fetchStats])
+  }, [fetchStats, stats])
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    fetchStats()
-  }
-
-  // ─── Login Screen ───
-  if (!authed) {
+  if (!stats) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <form
-          onSubmit={handleLogin}
-          className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-8"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <Lock className="w-8 h-8 text-rose-500" />
-            <h1 className="text-2xl font-black text-white">Admin</h1>
-          </div>
-          <p className="text-slate-500 text-sm mb-6">기름값 헌터 관리자 페이지</p>
-
-          <div className="space-y-4 mb-6">
-            <input
-              type="text"
-              placeholder="아이디"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-            />
-            <input
-              type="password"
-              placeholder="비밀번호"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-            />
-          </div>
-
-          {error && (
-            <p className="text-rose-400 text-sm mb-4">{error}</p>
-          )}
-
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8">
+          <h1 className="text-2xl font-black text-white">기름값 헌터 Analytics</h1>
+          <p className="mt-3 text-sm text-slate-400">
+            Vercel 보호 뒤에 있는 관리자 페이지입니다. 데이터를 불러오는 중입니다.
+          </p>
+          {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
           <button
-            type="submit"
+            type="button"
+            onClick={fetchStats}
             disabled={loading}
-            className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            <LogIn className="w-4 h-4" />
-            {loading ? '확인 중...' : '로그인'}
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            다시 시도
           </button>
-        </form>
+        </div>
       </div>
     )
   }
-
-  if (!stats) return null
 
   const maxHourly = Math.max(...stats.today.hourly, 1)
   const maxTrendViews = Math.max(...stats.trend.map((t) => t.views), 1)
@@ -153,6 +120,7 @@ export default function AdminPage() {
 
   const totalReferrerCount = Object.values(stats.total.referrers).reduce((a, b) => a + b, 0) || 1
   const totalDeviceCount = Object.values(stats.today.devices).reduce((a, b) => a + b, 0) || 1
+  const todaySearches = stats.today.topEvents.search_executed || 0
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -175,7 +143,7 @@ export default function AdminPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         {/* ── Summary Cards ─── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
           <SummaryCard
             icon={<Activity className="w-5 h-5 text-emerald-400" />}
             label="현재 접속자"
@@ -203,6 +171,13 @@ export default function AdminPage() {
             value={stats.total.views}
             sub="전체 기간"
             color="rose"
+          />
+          <SummaryCard
+            icon={<Search className="w-5 h-5 text-violet-400" />}
+            label="오늘 검색 실행"
+            value={todaySearches}
+            sub="핵심 행동"
+            color="violet"
           />
         </div>
 
@@ -372,6 +347,25 @@ export default function AdminPage() {
               )}
             </div>
           </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <h2 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              핵심 이벤트 (오늘)
+            </h2>
+            <div className="space-y-2">
+              {Object.entries(stats.today.topEvents).slice(0, 8).map(([name, count], i) => (
+                <div key={name} className="flex items-center gap-3 py-2 border-b border-slate-800 last:border-0">
+                  <span className="text-xs font-bold text-slate-600 w-6 text-right">{i + 1}</span>
+                  <span className="text-sm text-slate-300 flex-1 truncate font-mono">{name}</span>
+                  <span className="text-sm font-bold text-slate-400">{count}</span>
+                </div>
+              ))}
+              {Object.keys(stats.today.topEvents).length === 0 && (
+                <p className="text-slate-600 text-sm text-center py-4">아직 이벤트 데이터가 없습니다</p>
+              )}
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -397,6 +391,7 @@ function SummaryCard({
     sky: 'border-sky-800/50',
     amber: 'border-amber-800/50',
     rose: 'border-rose-800/50',
+    violet: 'border-violet-800/50',
   }
   return (
     <div className={`bg-slate-900 border ${borderColor[color] || 'border-slate-800'} rounded-2xl p-5`}>

@@ -101,6 +101,26 @@ export async function trackPageView(params: {
   ])
 }
 
+export async function trackEvent(params: {
+  name: string
+  path: string
+  referrer: string
+  userAgent: string
+  ip: string
+  sessionId: string
+  metadata?: Record<string, unknown>
+}) {
+  const now = Date.now()
+  const d = new Date(now)
+  const date = d.toISOString().slice(0, 10)
+
+  await kvPipeline([
+    ['HINCRBY', `a:evt:${date}`, params.name, 1],
+    ['HINCRBY', 'a:evt:total', params.name, 1],
+    ['EXPIRE', `a:evt:${date}`, DAY_TTL],
+  ])
+}
+
 // ─── Parse Redis hash result to sorted Record<string, number> ───
 function parseHash(raw: unknown): Record<string, number> {
   if (!raw) return {}
@@ -138,6 +158,8 @@ export async function getStats() {
     /* 9 */ ['SCARD', 'a:uv:all'],
     /* 10 */ ['HGETALL', 'a:ref:total'],
     /* 11 */ ['HGETALL', 'a:dev:total'],
+    /* 12 */ ['HGETALL', `a:evt:${today}`],
+    /* 13 */ ['HGETALL', 'a:evt:total'],
   ]
 
   // 30-day trend: views + DAU for each day
@@ -174,7 +196,7 @@ export async function getStats() {
     const d = new Date(now - (29 - i) * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10)
-    const baseIdx = 12 + i * 2
+    const baseIdx = 14 + i * 2
     trend.push({
       date: d,
       views: parseInt(String(r(baseIdx))) || 0,
@@ -194,12 +216,14 @@ export async function getStats() {
       topReferrers: parseHash(r(5)),
       topPaths: parseHash(r(6)),
       devices: parseHash(r(7)),
+      topEvents: parseHash(r(12)),
     },
     total: {
       views: parseInt(String(r(8))) || 0,
       uniqueVisitors: (r(9) as number) || 0,
       referrers: parseHash(r(10)),
       devices: parseHash(r(11)),
+      events: parseHash(r(13)),
     },
     trend,
   }

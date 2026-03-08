@@ -18,6 +18,8 @@ import {
   TrendingUp,
   Newspaper,
 } from 'lucide-react'
+import { ServiceShareButton } from '@/components/service-share-button'
+import { trackEvent, trackPageView } from '@/lib/analytics-client'
 
 // ─── Types ─────────────────────────────────────────────────────
 interface Station {
@@ -108,6 +110,12 @@ const LOADING_MESSAGES = [
 
 const FALLBACK_MARQUEE =
   '긴급속보 :: 기름값이 또 올랐습니다 :: 지갑이 울고 있습니다 :: 걸어다닐까 진지하게 고민 중 :: 자전거가 답인가 :: 전기차 사고 싶다 :: 버스비도 올랐잖아 :: 그냥 집에 있자'
+
+const DEFAULT_LOCATION = {
+  lat: 37.5665,
+  lng: 126.978,
+  label: '서울시청',
+}
 
 // ─── Helpers ───────────────────────────────────────────────────
 function getPriceReaction(price: number, fuelCode: string): string {
@@ -349,33 +357,57 @@ export default function GasFinderPage() {
   const [error, setError] = useState<string | null>(null)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
-  const [liveCount, setLiveCount] = useState(0)
   const [averages, setAverages] = useState<AvgPrice[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
+  const [locationSource, setLocationSource] = useState<'preset' | 'geolocation' | 'fallback'>(
+    'fallback',
+  )
+
+  const sharePath = `/gas-finder?fuel=${fuel}&radius=${radius}&sort=${sort}`
 
   // Analytics tracking
   useEffect(() => {
-    const sessionId =
-      sessionStorage.getItem('sid') ||
-      (() => {
-        const id = Math.random().toString(36).slice(2) + Date.now().toString(36)
-        sessionStorage.setItem('sid', id)
-        return id
-      })()
-
-    fetch('/api/analytics', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: '/gas-finder',
-        referrer: document.referrer || 'direct',
-        sessionId,
-      }),
-    }).catch(() => {})
+    const params = new URLSearchParams(window.location.search)
+    trackPageView('/gas-finder', {
+      pageType: 'finder',
+      preset: params.get('preset') || null,
+    })
   }, [])
 
-  // Geolocation
+  // Apply preset location when the page is opened from an intent landing.
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const presetFuel = params.get('fuel')
+    if (presetFuel && FUEL_TYPES.some((item) => item.code === presetFuel)) {
+      setFuel(presetFuel)
+    }
+
+    const presetRadius = Number(params.get('radius'))
+    if (RADIUS_OPTIONS.some((option) => option.value === presetRadius)) {
+      setRadius(presetRadius)
+    }
+
+    const presetSort = params.get('sort')
+    if (presetSort === '1' || presetSort === '2') {
+      setSort(presetSort)
+    }
+
+    const presetLat = Number(params.get('lat'))
+    const presetLng = Number(params.get('lng'))
+    const presetLabel = params.get('label') || DEFAULT_LOCATION.label
+    const presetKey = params.get('preset') || 'query'
+
+    if (!Number.isNaN(presetLat) && !Number.isNaN(presetLng)) {
+      setLocation({ lat: presetLat, lng: presetLng })
+      setLocationStatus(`${presetLabel} 기준으로 검색합니다`)
+      setLocationSource('preset')
+      trackEvent('preset_location_loaded', '/gas-finder', {
+        preset: presetKey,
+        label: presetLabel,
+      })
+      return
+    }
+
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -383,15 +415,18 @@ export default function GasFinderPage() {
           setLocationStatus(
             `현재 위치 확인됨 (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
           )
+          setLocationSource('geolocation')
         },
         () => {
-          setLocation({ lat: 37.5665, lng: 126.978 })
-          setLocationStatus('위치 확인 실패 \u2192 서울시청 기준으로 검색합니다')
+          setLocation({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng })
+          setLocationStatus(`위치 확인 실패 \u2192 ${DEFAULT_LOCATION.label} 기준으로 검색합니다`)
+          setLocationSource('fallback')
         },
       )
     } else {
-      setLocation({ lat: 37.5665, lng: 126.978 })
-      setLocationStatus('위치 기능 미지원 \u2192 서울시청 기준으로 검색합니다')
+      setLocation({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng })
+      setLocationStatus(`위치 기능 미지원 \u2192 ${DEFAULT_LOCATION.label} 기준으로 검색합니다`)
+      setLocationSource('fallback')
     }
   }, [])
 
@@ -412,14 +447,17 @@ export default function GasFinderPage() {
       .catch(() => {})
   }, [])
 
-  // Fake live counter
   useEffect(() => {
-    setLiveCount(Math.floor(Math.random() * 80) + 140)
-    const interval = setInterval(() => {
-      setLiveCount((prev) => prev + Math.floor(Math.random() * 3) - 1)
-    }, 4000 + Math.random() * 6000)
-    return () => clearInterval(interval)
-  }, [])
+    if (!searched || loading || error) return
+
+    trackEvent(stations.length > 0 ? 'results_rendered' : 'results_empty', '/gas-finder', {
+      fuel,
+      radius,
+      sort,
+      count: stations.length,
+      locationSource,
+    })
+  }, [error, fuel, loading, locationSource, radius, searched, sort, stations.length])
 
   const handleSearch = async () => {
     if (!location) return
@@ -430,6 +468,13 @@ export default function GasFinderPage() {
     setLoadingMessage(
       LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
     )
+    trackEvent('search_executed', '/gas-finder', {
+      fuel,
+      radius,
+      sort,
+      locationSource,
+      brandFilterCount: selectedBrands.size,
+    })
 
     try {
       const res = await fetch(
@@ -476,6 +521,20 @@ export default function GasFinderPage() {
       ? news.map((n) => `${n.title} (${n.source})`).join(' :: ')
       : FALLBACK_MARQUEE
 
+  const handleMapClick = (
+    provider: 'naver' | 'kakao' | 'tmap',
+    station: Station,
+    rank: number,
+  ) => {
+    trackEvent('map_click', '/gas-finder', {
+      provider,
+      stationId: station.id,
+      stationName: station.name,
+      rank,
+      fuel,
+    })
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* ── Header ─────────────────────────────────────────── */}
@@ -492,21 +551,13 @@ export default function GasFinderPage() {
           <p className="mt-3 text-slate-400 text-lg">
             월급은 통장을 스쳐가고... 기름값은 지갑을 관통한다
           </p>
-          {/* Live counter */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-950/50 border border-emerald-800/30 rounded-full"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span className="text-xs text-emerald-400">
-              지금 <span className="font-bold">{liveCount}</span>명이 기름값 비교 중
-            </span>
-          </motion.div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-800/30 bg-emerald-950/50 px-3 py-1.5 text-xs text-emerald-400">
+              <Zap className="h-3.5 w-3.5" />
+              오피넷 기반 가격 비교 + 지도 바로가기
+            </div>
+            <ServiceShareButton path={sharePath} eventPath="/gas-finder" />
+          </div>
         </div>
       </header>
 
@@ -908,6 +959,7 @@ export default function GasFinderPage() {
                             href={getNaverMapUrl(station.name)}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => handleMapClick('naver', station, index + 1)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
@@ -917,6 +969,7 @@ export default function GasFinderPage() {
                             href={getKakaoMapUrl(station.name)}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => handleMapClick('kakao', station, index + 1)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-bold rounded-lg transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
@@ -924,6 +977,7 @@ export default function GasFinderPage() {
                           </a>
                           <a
                             href={getTmapUrl(station.name)}
+                            onClick={() => handleMapClick('tmap', station, index + 1)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
