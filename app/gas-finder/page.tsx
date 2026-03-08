@@ -392,12 +392,14 @@ export default function GasFinderPage() {
       setSort(presetSort)
     }
 
-    const presetLat = Number(params.get('lat'))
-    const presetLng = Number(params.get('lng'))
+    const rawLat = params.get('lat')
+    const rawLng = params.get('lng')
+    const presetLat = rawLat != null ? Number(rawLat) : NaN
+    const presetLng = rawLng != null ? Number(rawLng) : NaN
     const presetLabel = params.get('label') || DEFAULT_LOCATION.label
     const presetKey = params.get('preset') || 'query'
 
-    if (!Number.isNaN(presetLat) && !Number.isNaN(presetLng)) {
+    if (rawLat != null && rawLng != null && !Number.isNaN(presetLat) && !Number.isNaN(presetLng)) {
       setLocation({ lat: presetLat, lng: presetLng })
       setLocationStatus(`${presetLabel} 기준으로 검색합니다`)
       setLocationSource('preset')
