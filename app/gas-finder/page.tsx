@@ -17,6 +17,7 @@ import {
   TrendingDown,
   TrendingUp,
   Newspaper,
+  ArrowLeft,
 } from 'lucide-react'
 import { ServiceShareButton } from '@/components/service-share-button'
 import { trackEvent, trackPageView } from '@/lib/analytics-client'
@@ -542,6 +543,13 @@ export default function GasFinderPage() {
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="relative overflow-hidden border-b border-slate-800">
         <div className="max-w-4xl mx-auto px-4 py-8">
+          <a
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            홈으로
+          </a>
           <div className="flex items-center gap-3">
             <motion.div animate={{ rotate: [0, -10, 10, -5, 0] }} transition={{ duration: 0.6, delay: 0.3 }}>
               <Fuel className="w-10 h-10 text-rose-500" />
