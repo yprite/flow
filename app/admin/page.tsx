@@ -117,6 +117,8 @@ export default function AdminPage() {
   const maxHourly = Math.max(...stats.today.hourly, 1)
   const maxTrendViews = Math.max(...stats.trend.map((t) => t.views), 1)
   const maxTrendDau = Math.max(...stats.trend.map((t) => t.dau), 1)
+  const trendLastIndex = stats.trend.length - 1
+  const trendLabelStep = stats.trend.length > 20 ? 5 : 3
 
   const totalReferrerCount = Object.values(stats.total.referrers).reduce((a, b) => a + b, 0) || 1
   const totalDeviceCount = Object.values(stats.today.devices).reduce((a, b) => a + b, 0) || 1
@@ -183,82 +185,106 @@ export default function AdminPage() {
 
         {/* ── 30-Day Trend ─── */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-sky-400" />
-            30일 트렌드
-          </h2>
-          <div className="flex items-end gap-1 h-40">
-            {stats.trend.map((day) => {
-              const heightPV = (day.views / maxTrendViews) * 100
-              const heightDAU = (day.dau / maxTrendDau) * 100
-              const isToday = day.date === stats.trend[stats.trend.length - 1].date
-              return (
-                <div key={day.date} className="flex-1 flex flex-col items-center gap-0.5 group relative">
-                  <div className="w-full flex flex-col items-center gap-0.5" style={{ height: '100%' }}>
-                    <div className="w-full flex items-end gap-0.5 flex-1">
-                      <div
-                        className={`flex-1 rounded-t ${isToday ? 'bg-sky-400' : 'bg-sky-600/50'} transition-all`}
-                        style={{ height: `${heightPV}%`, minHeight: day.views > 0 ? '2px' : '0' }}
-                      />
-                      <div
-                        className={`flex-1 rounded-t ${isToday ? 'bg-emerald-400' : 'bg-emerald-600/50'} transition-all`}
-                        style={{ height: `${heightDAU}%`, minHeight: day.dau > 0 ? '2px' : '0' }}
-                      />
-                    </div>
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs hidden group-hover:block whitespace-nowrap z-10">
-                    <div className="font-bold">{day.date.slice(5)}</div>
-                    <div className="text-sky-400">PV: {day.views}</div>
-                    <div className="text-emerald-400">DAU: {day.dau}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="flex justify-between mt-2 text-xs text-slate-600">
-            <span>{stats.trend[0]?.date.slice(5)}</span>
-            <div className="flex gap-4">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-sky-500" /> PV
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-base font-bold text-white sm:text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-sky-400" />
+              30일 트렌드
+            </h2>
+            <div className="flex flex-wrap gap-4 text-sm text-slate-300">
+              <span className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                페이지뷰
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> DAU
+              <span className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                순 방문자
               </span>
             </div>
-            <span>{stats.trend[stats.trend.length - 1]?.date.slice(5)}</span>
+          </div>
+          <div className="overflow-x-auto pb-2">
+            <div className="min-w-[760px]">
+              <div className="flex items-end gap-2 h-56">
+                {stats.trend.map((day, index) => {
+                  const heightPV = (day.views / maxTrendViews) * 100
+                  const heightDAU = (day.dau / maxTrendDau) * 100
+                  const isToday = index === trendLastIndex
+                  const showTrendLabel =
+                    index === 0 || index === trendLastIndex || index % trendLabelStep === 0
+                  return (
+                    <div
+                      key={day.date}
+                      className="group relative flex h-full w-10 shrink-0 flex-col items-center gap-2"
+                    >
+                      <div className="flex h-full w-full items-end gap-1">
+                        <div
+                          className={`flex-1 rounded-t-md ${isToday ? 'bg-sky-400' : 'bg-sky-600/60'} transition-all`}
+                          style={{ height: `${heightPV}%`, minHeight: day.views > 0 ? '6px' : '0' }}
+                        />
+                        <div
+                          className={`flex-1 rounded-t-md ${isToday ? 'bg-emerald-400' : 'bg-emerald-600/60'} transition-all`}
+                          style={{ height: `${heightDAU}%`, minHeight: day.dau > 0 ? '6px' : '0' }}
+                        />
+                      </div>
+                      <span
+                        className={`text-[11px] font-medium ${
+                          showTrendLabel ? 'text-slate-400' : 'text-transparent'
+                        }`}
+                      >
+                        {showTrendLabel ? day.date.slice(5) : '00-00'}
+                      </span>
+                      <div className="absolute -top-20 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm shadow-xl group-hover:block">
+                        <div className="font-bold">{day.date.slice(5)}</div>
+                        <div className="text-sky-400">PV: {day.views}</div>
+                        <div className="text-emerald-400">DAU: {day.dau}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* ── Hourly Distribution ─── */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-            <h2 className="text-sm font-bold text-slate-400 mb-4">시간대별 접속 (오늘)</h2>
-            <div className="flex items-end gap-0.5 h-32">
-              {stats.today.hourly.map((count, h) => {
-                const height = (count / maxHourly) * 100
-                const now = new Date().getHours()
-                return (
-                  <div key={h} className="flex-1 flex flex-col items-center group relative">
-                    <div
-                      className={`w-full rounded-t transition-all ${
-                        h === now ? 'bg-rose-500' : 'bg-slate-600'
-                      }`}
-                      style={{ height: `${height}%`, minHeight: count > 0 ? '2px' : '0' }}
-                    />
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs hidden group-hover:block whitespace-nowrap z-10">
-                      {h}시: {count}건
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <h2 className="text-base font-bold text-white sm:text-lg">시간대별 접속 (오늘)</h2>
+              <span className="text-sm text-slate-400">0시부터 24시까지</span>
             </div>
-            <div className="flex justify-between mt-2 text-xs text-slate-600">
-              <span>0시</span>
-              <span>6시</span>
-              <span>12시</span>
-              <span>18시</span>
-              <span>24시</span>
+            <div className="overflow-x-auto pb-2">
+              <div className="min-w-[640px]">
+                <div className="flex items-end gap-1.5 h-40">
+                  {stats.today.hourly.map((count, h) => {
+                    const height = (count / maxHourly) * 100
+                    const now = new Date().getHours()
+                    const showHourLabel = h === 0 || h === 23 || h % 3 === 0
+                    return (
+                      <div
+                        key={h}
+                        className="group relative flex h-full w-8 shrink-0 flex-col items-center gap-2"
+                      >
+                        <div
+                          className={`w-full rounded-t-md transition-all ${
+                            h === now ? 'bg-rose-500' : 'bg-slate-600'
+                          }`}
+                          style={{ height: `${height}%`, minHeight: count > 0 ? '6px' : '0' }}
+                        />
+                        <span
+                          className={`text-[11px] font-medium ${
+                            showHourLabel ? 'text-slate-400' : 'text-transparent'
+                          }`}
+                        >
+                          {showHourLabel ? `${h}시` : '00시'}
+                        </span>
+                        <div className="absolute -top-10 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm shadow-xl group-hover:block">
+                          {h}시: {count}건
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -293,6 +319,7 @@ export default function AdminPage() {
               )}
             </div>
           </div>
+          
 
           {/* ── Device Breakdown ─── */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
