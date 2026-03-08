@@ -16,7 +16,6 @@ import {
   Clock,
   TrendingDown,
   TrendingUp,
-  Newspaper,
   ArrowLeft,
 } from 'lucide-react'
 import { ServiceShareButton } from '@/components/service-share-button'
@@ -37,13 +36,6 @@ interface AvgPrice {
   name: string
   price: number
   diff: number
-}
-
-interface NewsItem {
-  title: string
-  link: string
-  date: string
-  source: string
 }
 
 // ─── Constants ─────────────────────────────────────────────────
@@ -108,9 +100,6 @@ const LOADING_MESSAGES = [
   '최저가를 찾아 삼만리...',
   '기름값 비교하느라 머리 아픈 중...',
 ]
-
-const FALLBACK_MARQUEE =
-  '긴급속보 :: 기름값이 또 올랐습니다 :: 지갑이 울고 있습니다 :: 걸어다닐까 진지하게 고민 중 :: 자전거가 답인가 :: 전기차 사고 싶다 :: 버스비도 올랐잖아 :: 그냥 집에 있자'
 
 const DEFAULT_LOCATION = {
   lat: 37.5665,
@@ -187,19 +176,6 @@ function getKakaoMapUrl(name: string): string {
 
 function getTmapUrl(name: string): string {
   return `tmap://search?name=${encodeURIComponent(name + ' 주유소')}`
-}
-
-function relativeTime(dateStr: string): string {
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}분 전`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}시간 전`
-    return `${Math.floor(hours / 24)}일 전`
-  } catch {
-    return ''
-  }
 }
 
 // ─── Animated Price ────────────────────────────────────────────
@@ -359,7 +335,6 @@ export default function GasFinderPage() {
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
   const [averages, setAverages] = useState<AvgPrice[]>([])
-  const [news, setNews] = useState<NewsItem[]>([])
   const [locationSource, setLocationSource] = useState<'preset' | 'geolocation' | 'fallback'>(
     'fallback',
   )
@@ -433,19 +408,12 @@ export default function GasFinderPage() {
     }
   }, [])
 
-  // Fetch averages + news on mount
+  // Fetch averages on mount
   useEffect(() => {
     fetch('/api/gas/average')
       .then((r) => r.json())
       .then((data) => {
         if (data.averages) setAverages(data.averages)
-      })
-      .catch(() => {})
-
-    fetch('/api/news')
-      .then((r) => r.json())
-      .then((items) => {
-        if (Array.isArray(items) && items.length > 0) setNews(items)
       })
       .catch(() => {})
   }, [])
@@ -518,12 +486,6 @@ export default function GasFinderPage() {
   const cheapestPrice = filteredStations.length > 0 ? Math.min(...filteredStations.map((s) => s.price)) : 0
   const mostExpensivePrice = maxPrice
 
-  // Build marquee text from news or fallback
-  const marqueeText =
-    news.length > 0
-      ? news.map((n) => `${n.title} (${n.source})`).join(' :: ')
-      : FALLBACK_MARQUEE
-
   const handleMapClick = (
     provider: 'naver' | 'kakao' | 'tmap',
     station: Station,
@@ -571,68 +533,7 @@ export default function GasFinderPage() {
         </div>
       </header>
 
-      {/* ── News Ticker ────────────────────────────────────── */}
-      <div className="bg-rose-950/50 border-y border-rose-900/50 overflow-hidden">
-        <div className="flex items-center">
-          {news.length > 0 && (
-            <div className="shrink-0 px-3 py-2 bg-rose-900/80 border-r border-rose-800/50 flex items-center gap-1">
-              <Newspaper className="w-3 h-3 text-rose-400" />
-              <span className="text-xs font-bold text-rose-300">유가 뉴스</span>
-            </div>
-          )}
-          <div className="flex-1 overflow-hidden">
-            <div className="flex whitespace-nowrap animate-marquee">
-              <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
-                {'\uD83D\uDEA8'} {marqueeText} &nbsp;&nbsp;&nbsp;
-              </span>
-              <span className="py-2 px-4 text-rose-400 text-sm shrink-0">
-                {'\uD83D\uDEA8'} {marqueeText} &nbsp;&nbsp;&nbsp;
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* ── News Headlines ───────────────────────────────── */}
-        {news.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl p-5"
-          >
-            <h2 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-              <Newspaper className="w-4 h-4" />
-              유가 &middot; 국제 뉴스
-            </h2>
-            <div className="space-y-2">
-              {news.slice(0, 5).map((item, i) => (
-                <a
-                  key={i}
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-3 group hover:bg-slate-800/50 rounded-lg p-2 -mx-2 transition-colors"
-                >
-                  <span className="text-rose-500 text-xs font-bold mt-0.5 shrink-0">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-200 group-hover:text-white truncate transition-colors">
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      {item.source}
-                      {item.date && ` \u00B7 ${relativeTime(item.date)}`}
-                    </p>
-                  </div>
-                  <ExternalLink className="w-3 h-3 text-slate-700 group-hover:text-slate-400 mt-1 shrink-0 transition-colors" />
-                </a>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
         {/* ── Average Prices ───────────────────────────────── */}
         {averages.length > 0 && (
           <motion.div

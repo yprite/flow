@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Gauge, MapPinned, Radar, TrendingDown } from 'lucide-react'
+import { OilNewsSection } from '@/components/oil-news-section'
 import { PageViewTracker } from '@/components/page-view-tracker'
 import { ServiceShareButton } from '@/components/service-share-button'
 import { SEO_REGIONS } from '@/lib/regions'
@@ -142,6 +143,8 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        <OilNewsSection />
 
         <section className="rounded-[32px] border border-white/8 bg-white/5 p-6 md:p-8">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
