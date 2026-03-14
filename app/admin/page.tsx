@@ -12,7 +12,13 @@ import {
   RefreshCw,
   Activity,
   Search,
+  MapPin,
+  House,
+  Star,
+  BellRing,
 } from 'lucide-react'
+
+type EventDimensionStats = Record<string, Record<string, Record<string, number>>>
 
 interface RealtimeData {
   activeNow: number
@@ -27,6 +33,7 @@ interface TodayData {
   topPaths: Record<string, number>
   devices: Record<string, number>
   topEvents: Record<string, number>
+  eventDimensions: EventDimensionStats
 }
 
 interface TotalData {
@@ -35,6 +42,7 @@ interface TotalData {
   referrers: Record<string, number>
   devices: Record<string, number>
   events: Record<string, number>
+  eventDimensions: EventDimensionStats
 }
 
 interface TrendItem {
@@ -120,6 +128,19 @@ export default function AdminPage() {
   const totalReferrerCount = Object.values(stats.total.referrers).reduce((a, b) => a + b, 0) || 1
   const totalDeviceCount = Object.values(stats.today.devices).reduce((a, b) => a + b, 0) || 1
   const todaySearches = stats.today.topEvents.search_executed || 0
+  const searchFuelBreakdown = stats.today.eventDimensions.search_executed?.fuel || {}
+  const searchRadiusBreakdown = stats.today.eventDimensions.search_executed?.radius || {}
+  const searchVisitBreakdown = stats.today.eventDimensions.search_executed?.repeatVisit || {}
+  const searchLocationBreakdown = stats.today.eventDimensions.search_executed?.locationSource || {}
+  const mapProviderBreakdown = stats.today.eventDimensions.map_click?.provider || {}
+  const savedLocationBreakdown = stats.today.eventDimensions.saved_location?.slot || {}
+  const favoriteActionBreakdown = stats.today.eventDimensions.favorite_station_toggled?.action || {}
+  const alertPermissionBreakdown =
+    stats.today.eventDimensions.price_alert_permission_updated?.permission ||
+    stats.today.eventDimensions.price_alert_saved?.permission ||
+    {}
+  const alertTriggerChannelBreakdown =
+    stats.today.eventDimensions.price_alert_triggered?.channel || {}
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -292,6 +313,69 @@ export default function AdminPage() {
               )}
             </div>
           </div>
+
+          <BreakdownCard
+            title="검색 유종 분포"
+            icon={<Search className="w-4 h-4" />}
+            data={searchFuelBreakdown}
+            emptyText="아직 검색 유종 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="검색 반경 분포"
+            icon={<MapPin className="w-4 h-4" />}
+            data={searchRadiusBreakdown}
+            emptyText="아직 반경 분포 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="방문자 상태"
+            icon={<Users className="w-4 h-4" />}
+            data={searchVisitBreakdown}
+            emptyText="아직 재방문 구분 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="위치 소스"
+            icon={<Activity className="w-4 h-4" />}
+            data={searchLocationBreakdown}
+            emptyText="아직 위치 소스 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="지도 앱 분포"
+            icon={<Globe className="w-4 h-4" />}
+            data={mapProviderBreakdown}
+            emptyText="아직 지도 클릭 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="저장 위치 액션"
+            icon={<House className="w-4 h-4" />}
+            data={savedLocationBreakdown}
+            emptyText="아직 저장 위치 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="즐겨찾기 액션"
+            icon={<Star className="w-4 h-4" />}
+            data={favoriteActionBreakdown}
+            emptyText="아직 즐겨찾기 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="알림 권한 상태"
+            icon={<BellRing className="w-4 h-4" />}
+            data={alertPermissionBreakdown}
+            emptyText="아직 알림 권한 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="알림 트리거 채널"
+            icon={<BellRing className="w-4 h-4" />}
+            data={alertTriggerChannelBreakdown}
+            emptyText="아직 알림 트리거 데이터가 없습니다"
+          />
         </div>
       </main>
     </div>
@@ -327,6 +411,54 @@ function SummaryCard({
       </div>
       <div className="text-3xl font-black">{value.toLocaleString()}</div>
       <div className="text-xs text-slate-600 mt-1">{sub}</div>
+    </div>
+  )
+}
+
+function BreakdownCard({
+  title,
+  icon,
+  data,
+  emptyText,
+}: {
+  title: string
+  icon: React.ReactNode
+  data: Record<string, number>
+  emptyText: string
+}) {
+  const total = Object.values(data).reduce((sum, value) => sum + value, 0) || 1
+  const entries = Object.entries(data)
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <h2 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2">
+        {icon}
+        {title}
+      </h2>
+      <div className="space-y-3">
+        {entries.slice(0, 6).map(([label, count]) => {
+          const pct = (count / total) * 100
+          return (
+            <div key={label}>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-300">{label}</span>
+                <span className="text-slate-500">
+                  {count}건 ({pct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-violet-500 rounded-full"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+        {entries.length === 0 && (
+          <p className="text-slate-600 text-sm text-center py-4">{emptyText}</p>
+        )}
+      </div>
     </div>
   )
 }

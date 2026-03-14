@@ -17,6 +17,10 @@ import {
   TrendingDown,
   TrendingUp,
   ArrowLeft,
+  House,
+  Building2,
+  Star,
+  History,
 } from 'lucide-react'
 import { ServiceShareButton } from '@/components/service-share-button'
 import { SiteFooter } from '@/components/site-footer'
@@ -45,6 +49,57 @@ interface StationHistoryPoint {
   date: string
   price: number
 }
+
+type LocationSource = 'preset' | 'geolocation' | 'fallback' | 'saved'
+
+interface SavedLocationRecord {
+  slot: 'home' | 'work'
+  label: string
+  lat: number
+  lng: number
+  source: LocationSource
+  savedAt: string
+}
+
+interface RecentSearchRecord {
+  id: string
+  label: string
+  lat: number
+  lng: number
+  fuel: string
+  radius: number
+  sort: string
+  locationSource: LocationSource
+  createdAt: string
+}
+
+interface FavoriteStationRecord {
+  key: string
+  id: string
+  name: string
+  brand: string
+  fuel: string
+  price: number
+  distance: number
+  savedAt: string
+}
+
+interface PriceAlertRecord {
+  id: string
+  label: string
+  lat: number
+  lng: number
+  fuel: string
+  radius: number
+  sort: string
+  thresholdPrice: number
+  locationSource: LocationSource
+  createdAt: string
+  lastTriggeredAt: string | null
+  lastTriggeredPrice: number | null
+}
+
+type AlertPermission = NotificationPermission | 'unsupported'
 
 // ─── Constants ─────────────────────────────────────────────────
 const FUEL_TYPES = [
@@ -113,6 +168,101 @@ const DEFAULT_LOCATION = {
   lat: 37.5665,
   lng: 126.978,
   label: '서울시청',
+}
+
+const STORAGE_KEYS = {
+  savedLocations: 'gas-finder:saved-locations',
+  recentSearches: 'gas-finder:recent-searches',
+  favoriteStations: 'gas-finder:favorite-stations',
+  priceAlerts: 'gas-finder:price-alerts',
+  visitCount: 'gas-finder:visit-count',
+} as const
+
+const MAX_RECENT_SEARCHES = 5
+const MAX_FAVORITE_STATIONS = 8
+const MAX_PRICE_ALERTS = 10
+
+const SORT_LABELS: Record<string, string> = {
+  '1': '가격순',
+  '2': '거리순',
+}
+
+const LOCATION_SOURCE_LABELS: Record<LocationSource, string> = {
+  preset: '프리셋 위치',
+  geolocation: '현재 위치',
+  fallback: '기본 위치',
+  saved: '저장 위치',
+}
+
+function readStoredJson<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function writeStoredJson(key: string, value: unknown) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Storage failures should not block the main search path.
+  }
+}
+
+function getFuelLabel(fuelCode: string) {
+  return FUEL_TYPES.find((item) => item.code === fuelCode)?.label || fuelCode
+}
+
+function getSortLabel(sort: string) {
+  return SORT_LABELS[sort] || sort
+}
+
+function getLocationSourceLabel(source: LocationSource) {
+  return LOCATION_SOURCE_LABELS[source]
+}
+
+function getSavedLocationSlotLabel(slot: SavedLocationRecord['slot']) {
+  return slot === 'home' ? '집' : '회사'
+}
+
+function buildRecentSearchId(params: {
+  lat: number
+  lng: number
+  fuel: string
+  radius: number
+  sort: string
+}) {
+  return [
+    params.lat.toFixed(4),
+    params.lng.toFixed(4),
+    params.fuel,
+    params.radius,
+    params.sort,
+  ].join(':')
+}
+
+function buildFavoriteStationKey(stationId: string, fuelCode: string) {
+  return `${fuelCode}:${stationId}`
+}
+
+function buildPriceAlertId(params: {
+  lat: number
+  lng: number
+  fuel: string
+  radius: number
+}) {
+  return [
+    params.lat.toFixed(4),
+    params.lng.toFixed(4),
+    params.fuel,
+    params.radius,
+  ].join(':')
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -437,6 +587,7 @@ export default function GasFinderPage() {
   const [sort, setSort] = useState('1')
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set())
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationLabel, setLocationLabel] = useState(DEFAULT_LOCATION.label)
   const [locationStatus, setLocationStatus] = useState('위치 확인 중...')
   const [stations, setStations] = useState<Station[]>([])
   const [loading, setLoading] = useState(false)
@@ -444,18 +595,42 @@ export default function GasFinderPage() {
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
   const [averages, setAverages] = useState<AvgPrice[]>([])
-  const [locationSource, setLocationSource] = useState<'preset' | 'geolocation' | 'fallback'>(
-    'fallback',
-  )
+  const [locationSource, setLocationSource] = useState<LocationSource>('fallback')
+  const [savedLocations, setSavedLocations] = useState<SavedLocationRecord[]>([])
+  const [recentSearches, setRecentSearches] = useState<RecentSearchRecord[]>([])
+  const [favoriteStations, setFavoriteStations] = useState<FavoriteStationRecord[]>([])
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlertRecord[]>([])
+  const [alertDraftPrice, setAlertDraftPrice] = useState('')
+  const [notificationPermission, setNotificationPermission] = useState<AlertPermission>('unsupported')
+  const [triggeredAlerts, setTriggeredAlerts] = useState<PriceAlertRecord[]>([])
+  const [isReturningVisitor, setIsReturningVisitor] = useState(false)
 
   const sharePath = `/gas-finder?fuel=${fuel}&radius=${radius}&sort=${sort}`
 
-  // Analytics tracking
   useEffect(() => {
+    const saved = readStoredJson<SavedLocationRecord[]>(STORAGE_KEYS.savedLocations, [])
+    const recent = readStoredJson<RecentSearchRecord[]>(STORAGE_KEYS.recentSearches, [])
+    const favorites = readStoredJson<FavoriteStationRecord[]>(
+      STORAGE_KEYS.favoriteStations,
+      [],
+    )
+    const alerts = readStoredJson<PriceAlertRecord[]>(STORAGE_KEYS.priceAlerts, [])
     const params = new URLSearchParams(window.location.search)
+    const currentVisitCount = Number(window.localStorage.getItem(STORAGE_KEYS.visitCount) || '0')
+    const repeatVisit = currentVisitCount > 0
+
+    setSavedLocations(saved)
+    setRecentSearches(recent)
+    setFavoriteStations(favorites)
+    setPriceAlerts(alerts)
+    setIsReturningVisitor(repeatVisit)
+    setNotificationPermission('Notification' in window ? window.Notification.permission : 'unsupported')
+
+    window.localStorage.setItem(STORAGE_KEYS.visitCount, String(currentVisitCount + 1))
     trackPageView('/gas-finder', {
       pageType: 'finder',
       preset: params.get('preset') || null,
+      repeatVisit,
     })
   }, [])
 
@@ -486,6 +661,7 @@ export default function GasFinderPage() {
 
     if (rawLat != null && rawLng != null && !Number.isNaN(presetLat) && !Number.isNaN(presetLng)) {
       setLocation({ lat: presetLat, lng: presetLng })
+      setLocationLabel(presetLabel)
       setLocationStatus(`${presetLabel} 기준으로 검색합니다`)
       setLocationSource('preset')
       trackEvent('preset_location_loaded', '/gas-finder', {
@@ -499,6 +675,7 @@ export default function GasFinderPage() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setLocationLabel('현재 위치')
           setLocationStatus(
             `현재 위치 확인됨 (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
           )
@@ -506,12 +683,14 @@ export default function GasFinderPage() {
         },
         () => {
           setLocation({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng })
+          setLocationLabel(DEFAULT_LOCATION.label)
           setLocationStatus(`위치 확인 실패 \u2192 ${DEFAULT_LOCATION.label} 기준으로 검색합니다`)
           setLocationSource('fallback')
         },
       )
     } else {
       setLocation({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng })
+      setLocationLabel(DEFAULT_LOCATION.label)
       setLocationStatus(`위치 기능 미지원 \u2192 ${DEFAULT_LOCATION.label} 기준으로 검색합니다`)
       setLocationSource('fallback')
     }
@@ -536,11 +715,110 @@ export default function GasFinderPage() {
       sort,
       count: stations.length,
       locationSource,
+      repeatVisit: isReturningVisitor,
     })
-  }, [error, fuel, loading, locationSource, radius, searched, sort, stations.length])
+  }, [error, fuel, isReturningVisitor, loading, locationSource, radius, searched, sort, stations.length])
 
-  const handleSearch = async () => {
+  const persistSavedLocations = (next: SavedLocationRecord[]) => {
+    writeStoredJson(STORAGE_KEYS.savedLocations, next)
+    setSavedLocations(next)
+  }
+
+  const persistRecentSearches = (next: RecentSearchRecord[]) => {
+    writeStoredJson(STORAGE_KEYS.recentSearches, next)
+    setRecentSearches(next)
+  }
+
+  const persistFavoriteStations = (next: FavoriteStationRecord[]) => {
+    writeStoredJson(STORAGE_KEYS.favoriteStations, next)
+    setFavoriteStations(next)
+  }
+
+  const persistPriceAlerts = (next: PriceAlertRecord[]) => {
+    writeStoredJson(STORAGE_KEYS.priceAlerts, next)
+    setPriceAlerts(next)
+  }
+
+  const requestAlertPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported')
+      return
+    }
+
+    const permission = await window.Notification.requestPermission()
+    setNotificationPermission(permission)
+    trackEvent('price_alert_permission_updated', '/gas-finder', {
+      permission,
+    })
+  }
+
+  const saveCurrentLocation = (slot: SavedLocationRecord['slot']) => {
     if (!location) return
+
+    const nextRecord: SavedLocationRecord = {
+      slot,
+      label: locationLabel,
+      lat: location.lat,
+      lng: location.lng,
+      source: locationSource,
+      savedAt: new Date().toISOString(),
+    }
+
+    const next = [nextRecord, ...savedLocations.filter((item) => item.slot !== slot)].sort((a, b) =>
+      a.slot.localeCompare(b.slot),
+    )
+
+    persistSavedLocations(next)
+    trackEvent('saved_location', '/gas-finder', {
+      slot,
+      source: locationSource,
+    })
+    setLocationStatus(`${getSavedLocationSlotLabel(slot)} 위치를 저장했습니다`)
+  }
+
+  const persistRecentSearch = (params: {
+    location: { lat: number; lng: number }
+    locationLabel: string
+    fuel: string
+    radius: number
+    sort: string
+    locationSource: LocationSource
+  }) => {
+    const nextRecord: RecentSearchRecord = {
+      id: buildRecentSearchId({
+        lat: params.location.lat,
+        lng: params.location.lng,
+        fuel: params.fuel,
+        radius: params.radius,
+        sort: params.sort,
+      }),
+      label: params.locationLabel,
+      lat: params.location.lat,
+      lng: params.location.lng,
+      fuel: params.fuel,
+      radius: params.radius,
+      sort: params.sort,
+      locationSource: params.locationSource,
+      createdAt: new Date().toISOString(),
+    }
+
+    const next = [
+      nextRecord,
+      ...recentSearches.filter((item) => item.id !== nextRecord.id),
+    ].slice(0, MAX_RECENT_SEARCHES)
+
+    persistRecentSearches(next)
+  }
+
+  const performSearch = async (params: {
+    location: { lat: number; lng: number }
+    locationLabel: string
+    fuel: string
+    radius: number
+    sort: string
+    locationSource: LocationSource
+    brandFilterCount: number
+  }) => {
     setLoading(true)
     setError(null)
     setStations([])
@@ -549,16 +827,17 @@ export default function GasFinderPage() {
       LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
     )
     trackEvent('search_executed', '/gas-finder', {
-      fuel,
-      radius,
-      sort,
-      locationSource,
-      brandFilterCount: selectedBrands.size,
+      fuel: params.fuel,
+      radius: params.radius,
+      sort: params.sort,
+      locationSource: params.locationSource,
+      brandFilterCount: params.brandFilterCount,
+      repeatVisit: isReturningVisitor,
     })
 
     try {
       const res = await fetch(
-        `/api/gas?lat=${location.lat}&lng=${location.lng}&fuel=${fuel}&radius=${radius}&sort=${sort}`,
+        `/api/gas?lat=${params.location.lat}&lng=${params.location.lng}&fuel=${params.fuel}&radius=${params.radius}&sort=${params.sort}`,
       )
       const data = await res.json()
 
@@ -569,11 +848,77 @@ export default function GasFinderPage() {
 
       setStations(data.stations || [])
       setSearched(true)
+      persistRecentSearch(params)
     } catch {
       setError('네트워크 오류... 인터넷 연결을 확인해주세요!')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = async () => {
+    if (!location) return
+
+    await performSearch({
+      location,
+      locationLabel,
+      fuel,
+      radius,
+      sort,
+      locationSource,
+      brandFilterCount: selectedBrands.size,
+    })
+  }
+
+  const applyRecentSearch = (item: RecentSearchRecord) => {
+    const nextLocation = { lat: item.lat, lng: item.lng }
+    setSelectedBrands(new Set())
+    setFuel(item.fuel)
+    setRadius(item.radius)
+    setSort(item.sort)
+    setLocation(nextLocation)
+    setLocationLabel(item.label)
+    setLocationSource(item.locationSource)
+    setLocationStatus(`${item.label} 최근 검색을 불러왔습니다`)
+    trackEvent('recent_search_loaded', '/gas-finder', {
+      fuel: item.fuel,
+      radius: item.radius,
+      sort: item.sort,
+      locationSource: item.locationSource,
+    })
+
+    void performSearch({
+      location: nextLocation,
+      locationLabel: item.label,
+      fuel: item.fuel,
+      radius: item.radius,
+      sort: item.sort,
+      locationSource: item.locationSource,
+      brandFilterCount: 0,
+    })
+  }
+
+  const applySavedLocation = (item: SavedLocationRecord) => {
+    const slotLabel = getSavedLocationSlotLabel(item.slot)
+    const nextLocation = { lat: item.lat, lng: item.lng }
+
+    setLocation(nextLocation)
+    setLocationLabel(slotLabel)
+    setLocationSource('saved')
+    setLocationStatus(`${slotLabel} 저장 위치를 불러왔습니다 (${item.label})`)
+    trackEvent('saved_location_loaded', '/gas-finder', {
+      slot: item.slot,
+    })
+
+    void performSearch({
+      location: nextLocation,
+      locationLabel: slotLabel,
+      fuel,
+      radius,
+      sort,
+      locationSource: 'saved',
+      brandFilterCount: selectedBrands.size,
+    })
   }
 
   const toggleBrand = (brand: string) => {
@@ -585,15 +930,221 @@ export default function GasFinderPage() {
     })
   }
 
+  const toggleFavoriteStation = (station: Station) => {
+    const key = buildFavoriteStationKey(station.id, fuel)
+    const exists = favoriteStations.some((item) => item.key === key)
+
+    const next = exists
+      ? favoriteStations.filter((item) => item.key !== key)
+      : [
+          {
+            key,
+            id: station.id,
+            name: station.name,
+            brand: station.brand,
+            fuel,
+            price: station.price,
+            distance: station.distance,
+            savedAt: new Date().toISOString(),
+          },
+          ...favoriteStations.filter((item) => item.key !== key),
+        ].slice(0, MAX_FAVORITE_STATIONS)
+
+    persistFavoriteStations(next)
+    trackEvent('favorite_station_toggled', '/gas-finder', {
+      action: exists ? 'removed' : 'saved',
+      brand: station.brand,
+      fuel,
+    })
+  }
+
+  const removeFavoriteStation = (item: FavoriteStationRecord) => {
+    const next = favoriteStations.filter((favorite) => favorite.key !== item.key)
+    persistFavoriteStations(next)
+    trackEvent('favorite_station_toggled', '/gas-finder', {
+      action: 'removed',
+      brand: item.brand,
+      fuel: item.fuel,
+    })
+  }
+
+  const savePriceAlert = () => {
+    if (!location) return
+
+    const thresholdPrice = Number(alertDraftPrice)
+    if (!Number.isFinite(thresholdPrice) || thresholdPrice <= 0) {
+      setError('알림 가격은 1원 이상 숫자로 입력해주세요.')
+      return
+    }
+
+    const nextAlert: PriceAlertRecord = {
+      id: buildPriceAlertId({
+        lat: location.lat,
+        lng: location.lng,
+        fuel,
+        radius,
+      }),
+      label: locationLabel,
+      lat: location.lat,
+      lng: location.lng,
+      fuel,
+      radius,
+      sort,
+      thresholdPrice,
+      locationSource,
+      createdAt: new Date().toISOString(),
+      lastTriggeredAt: null,
+      lastTriggeredPrice: null,
+    }
+
+    const next = [nextAlert, ...priceAlerts.filter((item) => item.id !== nextAlert.id)].slice(
+      0,
+      MAX_PRICE_ALERTS,
+    )
+
+    persistPriceAlerts(next)
+    setError(null)
+    trackEvent('price_alert_saved', '/gas-finder', {
+      fuel,
+      radius,
+      locationSource,
+      permission: notificationPermission,
+    })
+  }
+
+  const deletePriceAlert = (item: PriceAlertRecord) => {
+    const next = priceAlerts.filter((alert) => alert.id !== item.id)
+    persistPriceAlerts(next)
+    trackEvent('price_alert_deleted', '/gas-finder', {
+      fuel: item.fuel,
+      radius: item.radius,
+      locationSource: item.locationSource,
+    })
+  }
+
+  const applyPriceAlert = (item: PriceAlertRecord) => {
+    const nextLocation = { lat: item.lat, lng: item.lng }
+    setSelectedBrands(new Set())
+    setFuel(item.fuel)
+    setRadius(item.radius)
+    setSort(item.sort)
+    setLocation(nextLocation)
+    setLocationLabel(item.label)
+    setLocationSource(item.locationSource)
+    setLocationStatus(`${item.label} 알림 조건을 불러왔습니다`)
+
+    void performSearch({
+      location: nextLocation,
+      locationLabel: item.label,
+      fuel: item.fuel,
+      radius: item.radius,
+      sort: item.sort,
+      locationSource: item.locationSource,
+      brandFilterCount: 0,
+    })
+  }
+
+  const isFavoriteStation = (station: Station) =>
+    favoriteStations.some((item) => item.key === buildFavoriteStationKey(station.id, fuel))
+
   // Filter stations by selected brands
   const filteredStations =
     selectedBrands.size === 0
       ? stations
       : stations.filter((s) => selectedBrands.has(s.brand))
 
+  const cheapestStationOverall =
+    stations.length > 0
+      ? stations.reduce((best, station) => (station.price < best.price ? station : best))
+      : null
   const maxPrice = filteredStations.length > 0 ? Math.max(...filteredStations.map((s) => s.price)) : 0
   const cheapestPrice = filteredStations.length > 0 ? Math.min(...filteredStations.map((s) => s.price)) : 0
   const mostExpensivePrice = maxPrice
+  const homeLocation = savedLocations.find((item) => item.slot === 'home')
+  const workLocation = savedLocations.find((item) => item.slot === 'work')
+  const currentPriceAlertId =
+    location !== null
+      ? buildPriceAlertId({
+          lat: location.lat,
+          lng: location.lng,
+          fuel,
+          radius,
+        })
+      : null
+  const currentPriceAlert =
+    currentPriceAlertId !== null
+      ? priceAlerts.find((item) => item.id === currentPriceAlertId)
+      : null
+
+  useEffect(() => {
+    if (!searched || cheapestStationOverall === null) return
+    setAlertDraftPrice(String(Math.max(cheapestStationOverall.price - 20, 1)))
+  }, [cheapestStationOverall, searched])
+
+  useEffect(() => {
+    if (!searched || loading || cheapestStationOverall === null || !location) return
+
+    const currentAlertId = buildPriceAlertId({
+      lat: location.lat,
+      lng: location.lng,
+      fuel,
+      radius,
+    })
+    const now = new Date().toISOString()
+    const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000
+    const nextTriggeredAlerts: PriceAlertRecord[] = []
+    let shouldPersist = false
+
+    const nextAlerts = priceAlerts.map((alert) => {
+      if (alert.id !== currentAlertId) return alert
+      if (cheapestStationOverall.price > alert.thresholdPrice) return alert
+
+      const alreadyTriggeredRecently =
+        alert.lastTriggeredPrice === cheapestStationOverall.price &&
+        alert.lastTriggeredAt !== null &&
+        new Date(alert.lastTriggeredAt).getTime() >= sixHoursAgo
+
+      if (alreadyTriggeredRecently) {
+        nextTriggeredAlerts.push(alert)
+        return alert
+      }
+
+      const updatedAlert = {
+        ...alert,
+        lastTriggeredAt: now,
+        lastTriggeredPrice: cheapestStationOverall.price,
+      }
+
+      shouldPersist = true
+      nextTriggeredAlerts.push(updatedAlert)
+      return updatedAlert
+    })
+
+    if (nextTriggeredAlerts.length === 0) {
+      setTriggeredAlerts([])
+      return
+    }
+
+    setTriggeredAlerts(nextTriggeredAlerts)
+
+    if (shouldPersist) {
+      persistPriceAlerts(nextAlerts)
+      trackEvent('price_alert_triggered', '/gas-finder', {
+        fuel,
+        radius,
+        locationSource,
+        permission: notificationPermission,
+        channel: notificationPermission === 'granted' ? 'browser' : 'in-app',
+      })
+
+      if (notificationPermission === 'granted' && 'Notification' in window) {
+        nextTriggeredAlerts.forEach((alert) => {
+          const body = `${alert.label} 기준 ${getFuelLabel(alert.fuel)} 최저가가 ${cheapestStationOverall.price.toLocaleString()}원/L까지 내려왔습니다.`
+          new window.Notification('기름값 알림 도착', { body })
+        })
+      }
+    }
+  }, [cheapestStationOverall, fuel, loading, location, locationSource, notificationPermission, priceAlerts, radius, searched])
 
   const handleMapClick = (
     provider: 'naver' | 'kakao' | 'tmap',
@@ -780,6 +1331,56 @@ export default function GasFinderPage() {
             <span>{locationStatus}</span>
           </div>
 
+          <div className="mb-6 grid gap-3 md:grid-cols-2">
+            {[
+              { slot: 'home' as const, title: '집', icon: House, item: homeLocation },
+              { slot: 'work' as const, title: '회사', icon: Building2, item: workLocation },
+            ].map(({ slot, title, icon: SlotIcon, item }) => (
+              <div
+                key={slot}
+                className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <SlotIcon className="h-4 w-4 text-amber-300" />
+                      {title}
+                    </div>
+                    {item ? (
+                      <>
+                        <p className="mt-2 truncate text-sm text-slate-300">{item.label}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {getLocationSourceLabel(item.source)} 저장
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-500">
+                        아직 저장된 위치가 없습니다
+                      </p>
+                    )}
+                  </div>
+                  {item ? (
+                    <button
+                      type="button"
+                      onClick={() => applySavedLocation(item)}
+                      className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                    >
+                      불러오기
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveCurrentLocation(slot)}
+                  disabled={!location}
+                  className="mt-3 inline-flex items-center rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-50"
+                >
+                  현재 위치로 저장
+                </button>
+              </div>
+            ))}
+          </div>
+
           {/* Search Button */}
           <motion.button
             whileTap={{ scale: 0.97 }}
@@ -800,6 +1401,242 @@ export default function GasFinderPage() {
             )}
           </motion.button>
         </div>
+
+        {(recentSearches.length > 0 || favoriteStations.length > 0) && (
+          <div className="grid gap-6 mb-8 lg:grid-cols-2">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <History className="h-4 w-4 text-sky-400" />
+                최근 검색
+              </h2>
+              <div className="space-y-3">
+                {recentSearches.length > 0 ? (
+                  recentSearches.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => applyRecentSearch(item)}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-left transition-colors hover:border-slate-700"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-white">{item.label}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {getFuelLabel(item.fuel)} · {item.radius / 1000}km · {getSortLabel(item.sort)}
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold text-sky-300">바로 검색</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">아직 저장된 최근 검색이 없습니다.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <Star className="h-4 w-4 text-amber-300" />
+                즐겨찾기 주유소
+              </h2>
+              <div className="space-y-3">
+                {favoriteStations.length > 0 ? (
+                  favoriteStations.map((item) => (
+                    <div
+                      key={item.key}
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-white">{item.name}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {BRAND_NAMES[item.brand] || item.brand} · {getFuelLabel(item.fuel)}
+                          </div>
+                          <div className="mt-2 text-xs text-slate-400">
+                            최근 본 가격 {item.price.toLocaleString()}원/L · {formatDistance(item.distance)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFavoriteStation(item)}
+                          className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 hover:border-amber-400"
+                        >
+                          해제
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">아직 저장된 즐겨찾기 주유소가 없습니다.</p>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {(searched && stations.length > 0) || priceAlerts.length > 0 ? (
+          <div className="grid gap-6 mb-8 lg:grid-cols-[1.1fr_0.9fr]">
+            {searched && stations.length > 0 ? (
+              <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-300">
+                  <Zap className="h-4 w-4 text-amber-300" />
+                  가격 알림 만들기
+                </h2>
+                <p className="text-sm leading-6 text-slate-400">
+                  현재 검색 기준 최저가는 {cheapestStationOverall?.price.toLocaleString()}원/L입니다.
+                  원하는 가격 이하가 나오면 다음 검색 때 바로 알려드립니다.
+                </p>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="number"
+                    min="1"
+                    value={alertDraftPrice}
+                    onChange={(e) => setAlertDraftPrice(e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    placeholder="알림 가격 입력"
+                  />
+                  <button
+                    type="button"
+                    onClick={savePriceAlert}
+                    className="rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/20"
+                  >
+                    알림 저장
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    { label: '현재 최저가', value: cheapestStationOverall?.price || 1 },
+                    {
+                      label: '최저가 -20원',
+                      value: Math.max((cheapestStationOverall?.price || 1) - 20, 1),
+                    },
+                    {
+                      label: '최저가 -50원',
+                      value: Math.max((cheapestStationOverall?.price || 1) - 50, 1),
+                    },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => setAlertDraftPrice(String(option.value))}
+                      className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-white">브라우저 알림 권한</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {notificationPermission === 'granted'
+                          ? '브라우저 알림이 켜져 있습니다.'
+                          : notificationPermission === 'denied'
+                            ? '브라우저 알림이 차단되어 있어 인앱 알림만 동작합니다.'
+                            : notificationPermission === 'unsupported'
+                              ? '현재 브라우저는 알림을 지원하지 않습니다.'
+                              : '권한을 허용하면 브라우저 알림도 같이 보낼 수 있습니다.'}
+                      </div>
+                    </div>
+                    {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' ? (
+                      <button
+                        type="button"
+                        onClick={() => void requestAlertPermission()}
+                        className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-200 hover:border-amber-300"
+                      >
+                        알림 권한 요청
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {currentPriceAlert ? (
+                  <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                    현재 조건에는 {currentPriceAlert.thresholdPrice.toLocaleString()}원/L 이하 알림이 저장돼 있습니다.
+                  </div>
+                ) : null}
+
+                <p className="mt-4 text-xs text-slate-500">
+                  알림은 현재 브라우저에만 저장됩니다. 다른 기기에서는 공유되지 않습니다.
+                </p>
+              </section>
+            ) : null}
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <History className="h-4 w-4 text-amber-300" />
+                저장된 가격 알림
+              </h2>
+              <div className="space-y-3">
+                {priceAlerts.length > 0 ? (
+                  priceAlerts.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-white">{item.label}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {getFuelLabel(item.fuel)} · {item.radius / 1000}km · {getSortLabel(item.sort)}
+                          </div>
+                          <div className="mt-2 text-xs text-amber-200">
+                            {item.thresholdPrice.toLocaleString()}원/L 이하
+                          </div>
+                          {item.lastTriggeredAt ? (
+                            <div className="mt-2 text-[11px] text-emerald-300">
+                              최근 트리거 {new Date(item.lastTriggeredAt).toLocaleString('ko-KR')}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => applyPriceAlert(item)}
+                            className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                          >
+                            불러오기
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deletePriceAlert(item)}
+                            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">아직 저장된 가격 알림이 없습니다.</p>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {triggeredAlerts.length > 0 && (
+          <div className="mb-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-emerald-100">
+              <TrendingDown className="h-4 w-4" />
+              가격 알림 도착
+            </h2>
+            <div className="mt-3 space-y-2 text-sm text-emerald-50">
+              {triggeredAlerts.map((item) => (
+                <p key={item.id}>
+                  {item.label} 기준 {getFuelLabel(item.fuel)} 최저가가{' '}
+                  {item.lastTriggeredPrice?.toLocaleString()}원/L까지 내려왔습니다.
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Error ──────────────────────────────────────── */}
         <AnimatePresence>
@@ -866,6 +1703,7 @@ export default function GasFinderPage() {
                 const isCheapest = station.price === cheapestPrice
                 const isMostExpensive = station.price === mostExpensivePrice && filteredStations.length > 1
                 const driveTime = getDriveTime(station.distance)
+                const favoriteStation = isFavoriteStation(station)
 
                 return (
                   <motion.div
@@ -929,6 +1767,18 @@ export default function GasFinderPage() {
                           <span className="text-xs font-bold text-slate-400">
                             {index + 1}<span className="text-slate-600">/{filteredStations.length}등</span>
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleFavoriteStation(station)}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                              favoriteStation
+                                ? 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                                : 'border-slate-700 bg-slate-950/60 text-slate-400 hover:border-slate-500 hover:text-white'
+                            }`}
+                          >
+                            <Star className={`h-3 w-3 ${favoriteStation ? 'fill-current' : ''}`} />
+                            {favoriteStation ? '저장됨' : '즐겨찾기'}
+                          </button>
                           <div className="flex items-center gap-1.5 text-slate-500 text-xs">
                             <Clock className="w-3 h-3" />
                             <span>{driveTime}</span>

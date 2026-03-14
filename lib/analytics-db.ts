@@ -3,6 +3,75 @@
 const KV_URL = process.env.KV_REST_API_URL || ''
 const KV_TOKEN = process.env.KV_REST_API_TOKEN || ''
 
+const DAY_TTL = 90 * 24 * 60 * 60 // 90 days in seconds
+
+const EVENT_DIMENSION_KEYS: Record<string, string[]> = {
+  search_executed: ['fuel', 'radius', 'sort', 'locationSource', 'brandFilterCount', 'repeatVisit'],
+  results_rendered: ['fuel', 'radius', 'sort', 'locationSource', 'repeatVisit'],
+  results_empty: ['fuel', 'radius', 'sort', 'locationSource', 'repeatVisit'],
+  map_click: ['provider', 'fuel'],
+  preset_location_loaded: ['preset'],
+  share_click: ['channel'],
+  saved_location: ['slot', 'source'],
+  saved_location_loaded: ['slot'],
+  recent_search_loaded: ['fuel', 'radius', 'sort', 'locationSource'],
+  favorite_station_toggled: ['action', 'brand', 'fuel'],
+  price_alert_saved: ['fuel', 'radius', 'locationSource', 'permission'],
+  price_alert_deleted: ['fuel', 'radius', 'locationSource'],
+  price_alert_triggered: ['fuel', 'radius', 'locationSource', 'permission', 'channel'],
+  price_alert_permission_updated: ['permission'],
+}
+
+const TRACKED_EVENT_DIMENSIONS = Object.entries(EVENT_DIMENSION_KEYS).flatMap(
+  ([eventName, dimensions]) =>
+    dimensions.map((dimension) => ({
+      eventName,
+      dimension,
+    })),
+)
+
+const FUEL_LABELS: Record<string, string> = {
+  B027: '휘발유',
+  D047: '경유',
+  B034: '고급유',
+  K015: 'LPG',
+}
+
+const SORT_LABELS: Record<string, string> = {
+  '1': '가격순',
+  '2': '거리순',
+}
+
+const LOCATION_SOURCE_LABELS: Record<string, string> = {
+  preset: '프리셋 위치',
+  geolocation: '현재 위치',
+  fallback: '기본 위치',
+  saved: '저장 위치',
+}
+
+const MAP_PROVIDER_LABELS: Record<string, string> = {
+  naver: '네이버지도',
+  kakao: '카카오맵',
+  tmap: '티맵',
+}
+
+const SLOT_LABELS: Record<string, string> = {
+  home: '집',
+  work: '회사',
+}
+
+const FAVORITE_ACTION_LABELS: Record<string, string> = {
+  saved: '저장',
+  removed: '해제',
+}
+
+const NOTIFICATION_PERMISSION_LABELS: Record<string, string> = {
+  granted: '허용',
+  denied: '차단',
+  default: '미결정',
+  unsupported: '미지원',
+}
+
 function ensureEnv() {
   if (!KV_URL || !KV_TOKEN) {
     throw new Error('KV_REST_API_URL / KV_REST_API_TOKEN 환경변수가 설정되지 않았습니다')
@@ -54,7 +123,81 @@ export function getDeviceType(ua: string): string {
   return 'PC'
 }
 
-const DAY_TTL = 90 * 24 * 60 * 60 // 90 days in seconds
+function eventDimensionDayKey(date: string, eventName: string, dimension: string) {
+  return `a:evtm:${date}:${eventName}:${dimension}`
+}
+
+function eventDimensionTotalKey(eventName: string, dimension: string) {
+  return `a:evtm:total:${eventName}:${dimension}`
+}
+
+function normalizeDimensionValue(dimension: string, raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null
+
+  switch (dimension) {
+    case 'fuel': {
+      const key = String(raw)
+      return FUEL_LABELS[key] || key
+    }
+    case 'sort': {
+      const key = String(raw)
+      return SORT_LABELS[key] || key
+    }
+    case 'locationSource': {
+      const key = String(raw)
+      return LOCATION_SOURCE_LABELS[key] || key
+    }
+    case 'provider': {
+      const key = String(raw)
+      return MAP_PROVIDER_LABELS[key] || key
+    }
+    case 'slot': {
+      const key = String(raw)
+      return SLOT_LABELS[key] || key
+    }
+    case 'action': {
+      const key = String(raw)
+      return FAVORITE_ACTION_LABELS[key] || key
+    }
+    case 'permission': {
+      const key = String(raw)
+      return NOTIFICATION_PERMISSION_LABELS[key] || key
+    }
+    case 'repeatVisit':
+      return raw === true || raw === 'true' ? '재방문' : '첫 방문'
+    case 'radius': {
+      const numeric = Number(raw)
+      return Number.isFinite(numeric) ? `${numeric}m` : String(raw)
+    }
+    case 'brandFilterCount': {
+      const numeric = Number(raw)
+      if (!Number.isFinite(numeric) || numeric <= 0) return '0개'
+      if (numeric >= 3) return '3개+'
+      return `${numeric}개`
+    }
+    default: {
+      const normalized = String(raw).trim()
+      if (!normalized) return null
+      return normalized.slice(0, 48)
+    }
+  }
+}
+
+function extractEventDimensions(
+  eventName: string,
+  metadata?: Record<string, unknown>,
+): Array<{ dimension: string; value: string }> {
+  const allowedKeys = EVENT_DIMENSION_KEYS[eventName]
+  if (!allowedKeys || !metadata) return []
+
+  return allowedKeys
+    .map((dimension) => {
+      const value = normalizeDimensionValue(dimension, metadata[dimension])
+      if (!value) return null
+      return { dimension, value }
+    })
+    .filter((entry): entry is { dimension: string; value: string } => Boolean(entry))
+}
 
 // ─── Insert a page view ───
 export async function trackPageView(params: {
@@ -113,12 +256,23 @@ export async function trackEvent(params: {
   const now = Date.now()
   const d = new Date(now)
   const date = d.toISOString().slice(0, 10)
+  const dimensions = extractEventDimensions(params.name, params.metadata)
 
-  await kvPipeline([
+  const cmds: (string | number)[][] = [
     ['HINCRBY', `a:evt:${date}`, params.name, 1],
     ['HINCRBY', 'a:evt:total', params.name, 1],
     ['EXPIRE', `a:evt:${date}`, DAY_TTL],
-  ])
+  ]
+
+  for (const { dimension, value } of dimensions) {
+    const dayKey = eventDimensionDayKey(date, params.name, dimension)
+    const totalKey = eventDimensionTotalKey(params.name, dimension)
+    cmds.push(['HINCRBY', dayKey, value, 1])
+    cmds.push(['HINCRBY', totalKey, value, 1])
+    cmds.push(['EXPIRE', dayKey, DAY_TTL])
+  }
+
+  await kvPipeline(cmds)
 }
 
 // ─── Parse Redis hash result to sorted Record<string, number> ───
@@ -144,6 +298,7 @@ export async function getStats() {
   const now = Date.now()
   const today = new Date(now).toISOString().slice(0, 10)
   const fiveMinAgo = now - 5 * 60 * 1000
+  const fixedCommandCount = 14
 
   const cmds: (string | number)[][] = [
     /* 0 */ ['ZCOUNT', 'a:rt:sessions', fiveMinAgo, '+inf'],
@@ -162,6 +317,11 @@ export async function getStats() {
     /* 13 */ ['HGETALL', 'a:evt:total'],
   ]
 
+  for (const { eventName, dimension } of TRACKED_EVENT_DIMENSIONS) {
+    cmds.push(['HGETALL', eventDimensionDayKey(today, eventName, dimension)])
+    cmds.push(['HGETALL', eventDimensionTotalKey(eventName, dimension)])
+  }
+
   // 30-day trend: views + DAU for each day
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -171,6 +331,21 @@ export async function getStats() {
 
   const results = await kvPipeline(cmds)
   const r = (i: number) => results[i]?.result
+
+  function parseEventDimensions(startIdx: number, totalOffset: number) {
+    const stats: Record<string, Record<string, Record<string, number>>> = {}
+
+    TRACKED_EVENT_DIMENSIONS.forEach(({ eventName, dimension }, index) => {
+      const raw = r(startIdx + index * 2 + totalOffset)
+      const parsed = parseHash(raw)
+      if (Object.keys(parsed).length === 0) return
+
+      if (!stats[eventName]) stats[eventName] = {}
+      stats[eventName][dimension] = parsed
+    })
+
+    return stats
+  }
 
   // Parse hourly hash
   const hourlyRaw = r(4)
@@ -192,11 +367,12 @@ export async function getStats() {
 
   // 30-day trend
   const trend: { date: string; views: number; dau: number }[] = []
+  const trendBaseIdx = fixedCommandCount + TRACKED_EVENT_DIMENSIONS.length * 2
   for (let i = 0; i < 30; i++) {
     const d = new Date(now - (29 - i) * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10)
-    const baseIdx = 14 + i * 2
+    const baseIdx = trendBaseIdx + i * 2
     trend.push({
       date: d,
       views: parseInt(String(r(baseIdx))) || 0,
@@ -217,6 +393,7 @@ export async function getStats() {
       topPaths: parseHash(r(6)),
       devices: parseHash(r(7)),
       topEvents: parseHash(r(12)),
+      eventDimensions: parseEventDimensions(fixedCommandCount, 0),
     },
     total: {
       views: parseInt(String(r(8))) || 0,
@@ -224,6 +401,7 @@ export async function getStats() {
       referrers: parseHash(r(10)),
       devices: parseHash(r(11)),
       events: parseHash(r(13)),
+      eventDimensions: parseEventDimensions(fixedCommandCount, 1),
     },
     trend,
   }
