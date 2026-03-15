@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Gauge, MapPinned, Radar, TrendingDown } from 'lucide-react'
 import { AdsenseSlot } from '@/components/adsense-slot'
+import { HomeQuickActions } from '@/components/home-quick-actions'
 import { OilNewsSection } from '@/components/oil-news-section'
 import { PageViewTracker } from '@/components/page-view-tracker'
 import { ServiceShareButton } from '@/components/service-share-button'
@@ -116,6 +117,7 @@ export default function HomePage() {
               </Link>
               <ServiceShareButton path="/" eventPath="/" />
             </div>
+            <HomeQuickActions />
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <StatCard value="즉시" label="핵심 비교 흐름" />
               <StatCard value="전국 평균" label="유종별 시세 확인" />

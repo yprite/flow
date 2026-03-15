@@ -21,6 +21,7 @@ import {
   Building2,
   Star,
   History,
+  WifiOff,
 } from 'lucide-react'
 import { ServiceShareButton } from '@/components/service-share-button'
 import { SiteFooter } from '@/components/site-footer'
@@ -99,6 +100,24 @@ interface PriceAlertRecord {
   lastTriggeredPrice: number | null
 }
 
+interface CachedSearchSnapshot {
+  id: string
+  label: string
+  lat: number
+  lng: number
+  fuel: string
+  radius: number
+  sort: string
+  locationSource: LocationSource
+  stations: Station[]
+  cachedAt: string
+}
+
+interface CachedAverageSnapshot {
+  averages: AvgPrice[]
+  cachedAt: string
+}
+
 type AlertPermission = NotificationPermission | 'unsupported'
 
 // ─── Constants ─────────────────────────────────────────────────
@@ -173,12 +192,15 @@ const DEFAULT_LOCATION = {
 const STORAGE_KEYS = {
   savedLocations: 'gas-finder:saved-locations',
   recentSearches: 'gas-finder:recent-searches',
+  cachedSearchSnapshots: 'gas-finder:cached-search-snapshots',
+  averagePricesCache: 'gas-finder:average-prices-cache',
   favoriteStations: 'gas-finder:favorite-stations',
   priceAlerts: 'gas-finder:price-alerts',
   visitCount: 'gas-finder:visit-count',
 } as const
 
 const MAX_RECENT_SEARCHES = 5
+const MAX_CACHED_SEARCH_SNAPSHOTS = 5
 const MAX_FAVORITE_STATIONS = 8
 const MAX_PRICE_ALERTS = 10
 
@@ -320,6 +342,19 @@ function formatPriceDelta(delta: number | null): string {
   if (delta === null) return '비교 데이터 없음'
   if (delta === 0) return '전일과 동일'
   return `${delta > 0 ? '+' : ''}${delta.toLocaleString()}원`
+}
+
+function formatCacheTimestamp(date: string): string {
+  try {
+    return new Date(date).toLocaleString('ko-KR', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return date
+  }
 }
 
 function StationTrendPanel({
@@ -595,21 +630,30 @@ export default function GasFinderPage() {
   const [loadingMessage, setLoadingMessage] = useState('')
   const [searched, setSearched] = useState(false)
   const [averages, setAverages] = useState<AvgPrice[]>([])
+  const [averageResultSource, setAverageResultSource] = useState<'live' | 'cache' | null>(null)
+  const [averageCacheMeta, setAverageCacheMeta] = useState<CachedAverageSnapshot | null>(null)
   const [locationSource, setLocationSource] = useState<LocationSource>('fallback')
   const [savedLocations, setSavedLocations] = useState<SavedLocationRecord[]>([])
   const [recentSearches, setRecentSearches] = useState<RecentSearchRecord[]>([])
+  const [cachedSearchSnapshots, setCachedSearchSnapshots] = useState<CachedSearchSnapshot[]>([])
   const [favoriteStations, setFavoriteStations] = useState<FavoriteStationRecord[]>([])
   const [priceAlerts, setPriceAlerts] = useState<PriceAlertRecord[]>([])
   const [alertDraftPrice, setAlertDraftPrice] = useState('')
   const [notificationPermission, setNotificationPermission] = useState<AlertPermission>('unsupported')
   const [triggeredAlerts, setTriggeredAlerts] = useState<PriceAlertRecord[]>([])
   const [isReturningVisitor, setIsReturningVisitor] = useState(false)
+  const [searchResultSource, setSearchResultSource] = useState<'live' | 'cache' | null>(null)
+  const [cachedResultMeta, setCachedResultMeta] = useState<CachedSearchSnapshot | null>(null)
 
   const sharePath = `/gas-finder?fuel=${fuel}&radius=${radius}&sort=${sort}`
 
   useEffect(() => {
     const saved = readStoredJson<SavedLocationRecord[]>(STORAGE_KEYS.savedLocations, [])
     const recent = readStoredJson<RecentSearchRecord[]>(STORAGE_KEYS.recentSearches, [])
+    const cachedSnapshots = readStoredJson<CachedSearchSnapshot[]>(
+      STORAGE_KEYS.cachedSearchSnapshots,
+      [],
+    )
     const favorites = readStoredJson<FavoriteStationRecord[]>(
       STORAGE_KEYS.favoriteStations,
       [],
@@ -621,6 +665,7 @@ export default function GasFinderPage() {
 
     setSavedLocations(saved)
     setRecentSearches(recent)
+    setCachedSearchSnapshots(cachedSnapshots)
     setFavoriteStations(favorites)
     setPriceAlerts(alerts)
     setIsReturningVisitor(repeatVisit)
@@ -658,6 +703,13 @@ export default function GasFinderPage() {
     const presetLng = rawLng != null ? Number(rawLng) : NaN
     const presetLabel = params.get('label') || DEFAULT_LOCATION.label
     const presetKey = params.get('preset') || 'query'
+    const shortcut = params.get('shortcut')
+
+    if (shortcut) {
+      trackEvent('pwa_shortcut_opened', '/gas-finder', {
+        shortcut,
+      })
+    }
 
     if (rawLat != null && rawLng != null && !Number.isNaN(presetLat) && !Number.isNaN(presetLng)) {
       setLocation({ lat: presetLat, lng: presetLng })
@@ -698,12 +750,51 @@ export default function GasFinderPage() {
 
   // Fetch averages on mount
   useEffect(() => {
-    fetch('/api/gas/average')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.averages) setAverages(data.averages)
+    const cachedAverage = readStoredJson<CachedAverageSnapshot | null>(
+      STORAGE_KEYS.averagePricesCache,
+      null,
+    )
+
+    const restoreCachedAverage = (reason: 'offline' | 'network-error') => {
+      if (!cachedAverage || cachedAverage.averages.length === 0) return false
+
+      setAverages(cachedAverage.averages)
+      setAverageResultSource('cache')
+      setAverageCacheMeta(cachedAverage)
+      trackEvent('average_cache_loaded', '/gas-finder', {
+        reason,
       })
-      .catch(() => {})
+      return true
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      restoreCachedAverage('offline')
+      return
+    }
+
+    fetch('/api/gas/average')
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          throw new Error(data.error || 'average fetch failed')
+        }
+        return data
+      })
+      .then((data) => {
+        if (data.averages) {
+          const snapshot = {
+            averages: data.averages,
+            cachedAt: new Date().toISOString(),
+          }
+          setAverages(data.averages)
+          setAverageResultSource('live')
+          setAverageCacheMeta(snapshot)
+          writeStoredJson(STORAGE_KEYS.averagePricesCache, snapshot)
+        }
+      })
+      .catch(() => {
+        restoreCachedAverage('network-error')
+      })
   }, [])
 
   useEffect(() => {
@@ -727,6 +818,11 @@ export default function GasFinderPage() {
   const persistRecentSearches = (next: RecentSearchRecord[]) => {
     writeStoredJson(STORAGE_KEYS.recentSearches, next)
     setRecentSearches(next)
+  }
+
+  const persistCachedSearchSnapshots = (next: CachedSearchSnapshot[]) => {
+    writeStoredJson(STORAGE_KEYS.cachedSearchSnapshots, next)
+    setCachedSearchSnapshots(next)
   }
 
   const persistFavoriteStations = (next: FavoriteStationRecord[]) => {
@@ -810,6 +906,68 @@ export default function GasFinderPage() {
     persistRecentSearches(next)
   }
 
+  const saveCachedSearchSnapshot = (
+    params: {
+      location: { lat: number; lng: number }
+      locationLabel: string
+      fuel: string
+      radius: number
+      sort: string
+      locationSource: LocationSource
+    },
+    nextStations: Station[],
+  ) => {
+    if (nextStations.length === 0) return
+
+    const snapshot: CachedSearchSnapshot = {
+      id: buildRecentSearchId({
+        lat: params.location.lat,
+        lng: params.location.lng,
+        fuel: params.fuel,
+        radius: params.radius,
+        sort: params.sort,
+      }),
+      label: params.locationLabel,
+      lat: params.location.lat,
+      lng: params.location.lng,
+      fuel: params.fuel,
+      radius: params.radius,
+      sort: params.sort,
+      locationSource: params.locationSource,
+      stations: nextStations,
+      cachedAt: new Date().toISOString(),
+    }
+
+    const next = [snapshot, ...cachedSearchSnapshots.filter((item) => item.id !== snapshot.id)].slice(
+      0,
+      MAX_CACHED_SEARCH_SNAPSHOTS,
+    )
+
+    persistCachedSearchSnapshots(next)
+  }
+
+  const restoreCachedSearchSnapshot = (
+    snapshot: CachedSearchSnapshot,
+    reason: 'offline' | 'network-error' | 'server-error',
+  ) => {
+    setStations(snapshot.stations)
+    setSearched(true)
+    setError(null)
+    setSearchResultSource('cache')
+    setCachedResultMeta(snapshot)
+    setLocationStatus(
+      reason === 'offline'
+        ? `${snapshot.label} 저장 결과를 오프라인에서 불러왔습니다`
+        : `${snapshot.label} 저장 결과를 네트워크 대신 불러왔습니다`,
+    )
+    trackEvent('cached_search_loaded', '/gas-finder', {
+      reason,
+      fuel: snapshot.fuel,
+      radius: snapshot.radius,
+      locationSource: snapshot.locationSource,
+    })
+  }
+
   const performSearch = async (params: {
     location: { lat: number; lng: number }
     locationLabel: string
@@ -819,10 +977,26 @@ export default function GasFinderPage() {
     locationSource: LocationSource
     brandFilterCount: number
   }) => {
+    const searchId = buildRecentSearchId({
+      lat: params.location.lat,
+      lng: params.location.lng,
+      fuel: params.fuel,
+      radius: params.radius,
+      sort: params.sort,
+    })
+    const cachedSnapshot =
+      cachedSearchSnapshots.find((item) => item.id === searchId) ||
+      readStoredJson<CachedSearchSnapshot[]>(STORAGE_KEYS.cachedSearchSnapshots, []).find(
+        (item) => item.id === searchId,
+      ) ||
+      null
+
     setLoading(true)
     setError(null)
     setStations([])
     setSearched(false)
+    setSearchResultSource(null)
+    setCachedResultMeta(null)
     setLoadingMessage(
       LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
     )
@@ -835,6 +1009,16 @@ export default function GasFinderPage() {
       repeatVisit: isReturningVisitor,
     })
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (cachedSnapshot) {
+        restoreCachedSearchSnapshot(cachedSnapshot, 'offline')
+      } else {
+        setError('오프라인 상태입니다. 저장된 검색 결과가 있을 때만 다시 볼 수 있습니다.')
+      }
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await fetch(
         `/api/gas?lat=${params.location.lat}&lng=${params.location.lng}&fuel=${params.fuel}&radius=${params.radius}&sort=${params.sort}`,
@@ -842,15 +1026,27 @@ export default function GasFinderPage() {
       const data = await res.json()
 
       if (!res.ok) {
+        if (cachedSnapshot && res.status >= 500) {
+          restoreCachedSearchSnapshot(cachedSnapshot, 'server-error')
+          return
+        }
         setError(data.error || '알 수 없는 오류가 발생했습니다')
         return
       }
 
-      setStations(data.stations || [])
+      const nextStations = data.stations || []
+
+      setStations(nextStations)
       setSearched(true)
+      setSearchResultSource('live')
       persistRecentSearch(params)
+      saveCachedSearchSnapshot(params, nextStations)
     } catch {
-      setError('네트워크 오류... 인터넷 연결을 확인해주세요!')
+      if (cachedSnapshot) {
+        restoreCachedSearchSnapshot(cachedSnapshot, 'network-error')
+      } else {
+        setError('네트워크 오류... 인터넷 연결을 확인해주세요!')
+      }
     } finally {
       setLoading(false)
     }
@@ -1047,6 +1243,8 @@ export default function GasFinderPage() {
   const isFavoriteStation = (station: Station) =>
     favoriteStations.some((item) => item.key === buildFavoriteStationKey(station.id, fuel))
 
+  const cachedSearchSnapshotIds = new Set(cachedSearchSnapshots.map((item) => item.id))
+
   // Filter stations by selected brands
   const filteredStations =
     selectedBrands.size === 0
@@ -1202,10 +1400,18 @@ export default function GasFinderPage() {
             transition={{ delay: 0.1 }}
             className="mb-6"
           >
-            <h2 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              전국 평균 기름값
-            </h2>
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                전국 평균 기름값
+              </h2>
+              {averageResultSource === 'cache' && averageCacheMeta ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-100">
+                  <WifiOff className="h-3.5 w-3.5" />
+                  저장 시각 {formatCacheTimestamp(averageCacheMeta.cachedAt)}
+                </div>
+              ) : null}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {averages.map((avg, i) => {
                 const isDown = avg.diff < 0
@@ -1420,7 +1626,15 @@ export default function GasFinderPage() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-white">{item.label}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="truncate text-sm font-semibold text-white">{item.label}</div>
+                            {cachedSearchSnapshotIds.has(item.id) ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                                <WifiOff className="h-3 w-3" />
+                                오프라인 가능
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="mt-1 text-xs text-slate-500">
                             {getFuelLabel(item.fuel)} · {item.radius / 1000}km · {getSortLabel(item.sort)}
                           </div>
@@ -1669,6 +1883,28 @@ export default function GasFinderPage() {
         {/* ── Results ────────────────────────────────────── */}
         {filteredStations.length > 0 && (
           <>
+            {searchResultSource === 'cache' && cachedResultMeta ? (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
+                  <div>
+                    <div className="text-sm font-semibold text-amber-100">
+                      저장된 검색 결과를 보여주는 중입니다
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-amber-50/85">
+                      {cachedResultMeta.label} 기준 {getFuelLabel(cachedResultMeta.fuel)} 결과를{' '}
+                      {formatCacheTimestamp(cachedResultMeta.cachedAt)}에 저장한 스냅샷으로
+                      불러왔습니다. 연결이 복구되면 다시 검색해 최신 가격으로 갱신하세요.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

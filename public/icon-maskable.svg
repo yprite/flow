@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#facc15" />
+    </linearGradient>
+    <linearGradient id="panel" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#020617" />
+  <circle cx="96" cy="96" r="112" fill="url(#bg)" opacity="0.24" />
+  <circle cx="420" cy="404" r="152" fill="#10b981" opacity="0.16" />
+  <g transform="translate(64 64)">
+    <rect x="64" y="48" width="176" height="272" rx="42" fill="url(#panel)" />
+    <rect x="92" y="80" width="120" height="64" rx="16" fill="#f8fafc" opacity="0.92" />
+    <rect x="92" y="166" width="120" height="16" rx="8" fill="#f8fafc" opacity="0.22" />
+    <rect x="92" y="196" width="120" height="16" rx="8" fill="#f8fafc" opacity="0.22" />
+    <rect x="92" y="226" width="84" height="16" rx="8" fill="#f8fafc" opacity="0.22" />
+    <rect x="112" y="264" width="100" height="34" rx="17" fill="url(#bg)" />
+    <path
+      d="M252 92c0-21.091 17.909-38 40-38h8c22.091 0 40 16.909 40 38v118c0 17.119-6.92 33.514-19.191 45.309L296 280v50c0 12.15-9.85 22-22 22h-6c-12.15 0-22-9.85-22-22V92z"
+      fill="#f8fafc"
+      opacity="0.94"
+    />
+    <path
+      d="M292 92h8c7.732 0 14 6.268 14 14v80h-36v-80c0-7.732 6.268-14 14-14z"
+      fill="#020617"
+      opacity="0.76"
+    />
+    <path d="M256 298h48l-18 24h-30z" fill="#10b981" />
+  </g>
+</svg>

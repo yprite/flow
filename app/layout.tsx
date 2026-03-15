@@ -1,6 +1,8 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt'
+import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { getAdsenseClientId } from '@/lib/adsense'
 import {
   DEFAULT_DESCRIPTION,
@@ -12,14 +14,20 @@ import {
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
+  applicationName: SITE_NAME,
   title: {
     default: `${SITE_NAME} - 주유소 최저가 검색기`,
     template: `%s | ${SITE_NAME}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: DEFAULT_KEYWORDS,
+  manifest: '/manifest.webmanifest',
   alternates: {
     canonical: '/',
+  },
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
   },
   openGraph: {
     siteName: SITE_NAME,
@@ -34,6 +42,13 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} - 주유소 최저가 검색기`,
     description: DEFAULT_DESCRIPTION,
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#020617',
 }
 
 export default function RootLayout({
@@ -52,6 +67,8 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        <ServiceWorkerRegister />
+        <PwaInstallPrompt />
         {adsenseClientId ? (
           <Script
             async

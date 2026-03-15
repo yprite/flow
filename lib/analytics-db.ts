@@ -20,6 +20,14 @@ const EVENT_DIMENSION_KEYS: Record<string, string[]> = {
   price_alert_deleted: ['fuel', 'radius', 'locationSource'],
   price_alert_triggered: ['fuel', 'radius', 'locationSource', 'permission', 'channel'],
   price_alert_permission_updated: ['permission'],
+  install_prompt_viewed: ['surface', 'platform'],
+  install_prompt_dismissed: ['surface', 'platform'],
+  install_prompt_accepted: ['surface', 'platform'],
+  pwa_launch: ['mode'],
+  pwa_shortcut_opened: ['shortcut'],
+  cached_search_loaded: ['reason', 'fuel', 'radius', 'locationSource'],
+  average_cache_loaded: ['reason'],
+  home_quick_action_opened: ['action', 'type'],
 }
 
 const TRACKED_EVENT_DIMENSIONS = Object.entries(EVENT_DIMENSION_KEYS).flatMap(

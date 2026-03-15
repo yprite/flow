@@ -16,6 +16,9 @@ import {
   House,
   Star,
   BellRing,
+  History,
+  WifiOff,
+  Download,
 } from 'lucide-react'
 
 type EventDimensionStats = Record<string, Record<string, Record<string, number>>>
@@ -141,6 +144,20 @@ export default function AdminPage() {
     {}
   const alertTriggerChannelBreakdown =
     stats.today.eventDimensions.price_alert_triggered?.channel || {}
+  const installPromptSurfaceBreakdown =
+    stats.today.eventDimensions.install_prompt_viewed?.surface || {}
+  const installPromptPlatformBreakdown =
+    stats.today.eventDimensions.install_prompt_accepted?.platform || {}
+  const pwaLaunchBreakdown =
+    stats.today.eventDimensions.pwa_launch?.mode || {}
+  const shortcutBreakdown =
+    stats.today.eventDimensions.pwa_shortcut_opened?.shortcut || {}
+  const quickActionBreakdown =
+    stats.today.eventDimensions.home_quick_action_opened?.action || {}
+  const cachedSearchBreakdown =
+    stats.today.eventDimensions.cached_search_loaded?.reason || {}
+  const averageCacheBreakdown =
+    stats.today.eventDimensions.average_cache_loaded?.reason || {}
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -376,8 +393,65 @@ export default function AdminPage() {
             data={alertTriggerChannelBreakdown}
             emptyText="아직 알림 트리거 데이터가 없습니다"
           />
+
+          <BreakdownCard
+            title="설치 배너 노출 위치"
+            icon={<Download className="w-4 h-4" />}
+            data={installPromptSurfaceBreakdown}
+            emptyText="아직 설치 배너 노출 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="설치 수락 플랫폼"
+            icon={<Smartphone className="w-4 h-4" />}
+            data={installPromptPlatformBreakdown}
+            emptyText="아직 설치 수락 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="PWA 실행 모드"
+            icon={<Activity className="w-4 h-4" />}
+            data={pwaLaunchBreakdown}
+            emptyText="아직 PWA 실행 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="앱 숏컷 진입"
+            icon={<ZapShortcutIcon />}
+            data={shortcutBreakdown}
+            emptyText="아직 앱 숏컷 진입 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="홈 빠른 실행 클릭"
+            icon={<History className="w-4 h-4" />}
+            data={quickActionBreakdown}
+            emptyText="아직 홈 빠른 실행 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="검색 결과 캐시 복원"
+            icon={<WifiOff className="w-4 h-4" />}
+            data={cachedSearchBreakdown}
+            emptyText="아직 검색 캐시 복원 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="평균가 캐시 복원"
+            icon={<WifiOff className="w-4 h-4" />}
+            data={averageCacheBreakdown}
+            emptyText="아직 평균가 캐시 복원 데이터가 없습니다"
+          />
         </div>
       </main>
+    </div>
+  )
+}
+
+function ZapShortcutIcon() {
+  return (
+    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-500/20 text-violet-300">
+      <span className="text-[10px] font-black">S</span>
     </div>
   )
 }
