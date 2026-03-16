@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
-import { PwaInstallPrompt } from '@/components/pwa-install-prompt'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { getAdsenseClientId } from '@/lib/adsense'
 import {
@@ -68,7 +67,6 @@ export default function RootLayout({
       <body className="antialiased">
         {children}
         <ServiceWorkerRegister />
-        <PwaInstallPrompt />
         {adsenseClientId ? (
           <Script
             async
