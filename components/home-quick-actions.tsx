@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Building2, Fuel, History, House, MapPin, WifiOff, Zap } from 'lucide-react'
+import { BatteryCharging, Building2, Fuel, History, House, MapPin, WifiOff, Zap } from 'lucide-react'
 import { trackEvent } from '@/lib/analytics-client'
 
 type LocationSource = 'preset' | 'geolocation' | 'fallback' | 'saved'
@@ -167,6 +167,15 @@ export function HomeQuickActions() {
       description: '서울시청 중심으로 시작',
       accent: 'from-violet-500/20 to-fuchsia-400/5 border-violet-400/20 text-violet-50',
       icon: MapPin,
+      type: 'preset',
+    },
+    {
+      key: 'ev-finder',
+      href: '/ev-finder?shortcut=ev-home',
+      title: '전기차 충전소',
+      description: '내 주변 충전소 요금 비교',
+      accent: 'from-emerald-500/20 to-cyan-400/5 border-emerald-400/20 text-emerald-50',
+      icon: BatteryCharging,
       type: 'preset',
     },
   ].filter(Boolean) as Array<{
