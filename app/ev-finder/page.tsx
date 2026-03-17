@@ -781,6 +781,7 @@ export default function EvFinderPage() {
       locationSource: params.locationSource,
       operatorFilterCount: params.operatorFilterCount,
       repeatVisit: isReturningVisitor,
+      searchArea: params.locationLabel,
     })
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {

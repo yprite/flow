@@ -1007,6 +1007,7 @@ export default function GasFinderPage() {
       locationSource: params.locationSource,
       brandFilterCount: params.brandFilterCount,
       repeatVisit: isReturningVisitor,
+      searchArea: params.locationLabel,
     })
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {

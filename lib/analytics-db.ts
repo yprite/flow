@@ -6,7 +6,7 @@ const KV_TOKEN = process.env.KV_REST_API_TOKEN || ''
 const DAY_TTL = 90 * 24 * 60 * 60 // 90 days in seconds
 
 const EVENT_DIMENSION_KEYS: Record<string, string[]> = {
-  search_executed: ['fuel', 'radius', 'sort', 'locationSource', 'brandFilterCount', 'repeatVisit'],
+  search_executed: ['fuel', 'radius', 'sort', 'locationSource', 'brandFilterCount', 'repeatVisit', 'searchArea'],
   results_rendered: ['fuel', 'radius', 'sort', 'locationSource', 'repeatVisit'],
   results_empty: ['fuel', 'radius', 'sort', 'locationSource', 'repeatVisit'],
   map_click: ['provider', 'fuel'],

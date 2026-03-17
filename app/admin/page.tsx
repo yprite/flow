@@ -135,6 +135,7 @@ export default function AdminPage() {
   const searchRadiusBreakdown = stats.today.eventDimensions.search_executed?.radius || {}
   const searchVisitBreakdown = stats.today.eventDimensions.search_executed?.repeatVisit || {}
   const searchLocationBreakdown = stats.today.eventDimensions.search_executed?.locationSource || {}
+  const searchAreaBreakdown = stats.today.eventDimensions.search_executed?.searchArea || {}
   const mapProviderBreakdown = stats.today.eventDimensions.map_click?.provider || {}
   const savedLocationBreakdown = stats.today.eventDimensions.saved_location?.slot || {}
   const favoriteActionBreakdown = stats.today.eventDimensions.favorite_station_toggled?.action || {}
@@ -357,6 +358,13 @@ export default function AdminPage() {
             icon={<Activity className="w-4 h-4" />}
             data={searchLocationBreakdown}
             emptyText="아직 위치 소스 데이터가 없습니다"
+          />
+
+          <BreakdownCard
+            title="검색 지역 분포"
+            icon={<MapPin className="w-4 h-4" />}
+            data={searchAreaBreakdown}
+            emptyText="아직 검색 지역 데이터가 없습니다"
           />
 
           <BreakdownCard
