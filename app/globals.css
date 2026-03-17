@@ -7,6 +7,8 @@
   --animate-marquee: marquee 30s linear infinite;
   --animate-glow: glow-pulse 2s ease-in-out infinite;
   --animate-float: float 3s ease-in-out infinite;
+  --animate-road-dash: road-dash 2s linear infinite;
+  --animate-car-bounce: car-bounce 2s ease-in-out infinite;
 }
 
 @keyframes marquee {
@@ -26,6 +28,16 @@
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+@keyframes road-dash {
+  from { background-position-y: 0; }
+  to { background-position-y: 40px; }
+}
+
+@keyframes car-bounce {
+  0%, 100% { transform: translateY(0) translateX(-50%); }
+  50% { transform: translateY(-6px) translateX(-50%); }
 }
 
 @layer base {
