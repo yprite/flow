@@ -240,6 +240,58 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="rounded-[32px] border border-white/8 bg-slate-950/70 p-6 md:p-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-200/80">
+                EV Charging
+              </p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight">
+                전기차 운전자도 여기서 시작하세요
+              </h2>
+              <p className="mt-3 max-w-2xl text-slate-300">
+                충전 요금 절약법, 장거리 충전 전략, 주요 충전 사업자 정보까지.
+                전기차 운전에 필요한 실용 가이드를 모았습니다.
+              </p>
+            </div>
+            <Link
+              href="/ev"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-sky-200 hover:text-white"
+            >
+              전기차 충전 가이드 보기
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
+              <div className="mb-3 inline-flex rounded-xl border border-white/10 bg-slate-900/80 p-2">
+                <BatteryCharging className="h-5 w-5 text-sky-300" />
+              </div>
+              <h3 className="text-lg font-bold">충전 요금 비교</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                사업자별, 시간대별 충전 요금 차이를 알면 월 충전비를 줄일 수 있습니다.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
+              <div className="mb-3 inline-flex rounded-xl border border-white/10 bg-slate-900/80 p-2">
+                <MapPinned className="h-5 w-5 text-emerald-300" />
+              </div>
+              <h3 className="text-lg font-bold">충전소 찾기 팁</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                네이버지도, 카카오맵, 환경부 앱으로 실시간 충전소를 찾는 방법을 안내합니다.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
+              <div className="mb-3 inline-flex rounded-xl border border-white/10 bg-slate-900/80 p-2">
+                <Radar className="h-5 w-5 text-amber-300" />
+              </div>
+              <h3 className="text-lg font-bold">장거리 충전 전략</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                경로 충전소 미리 확인하고, 충전 타이밍까지 계획하면 불안 없이 이동할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <AdsenseSlot slot={homeInlineAdSlot} />
 
         <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
