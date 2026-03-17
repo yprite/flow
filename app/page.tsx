@@ -115,6 +115,13 @@ export default function HomePage() {
               >
                 지금 최저가 찾기
               </Link>
+              <Link
+                href="/ev-finder"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition-transform hover:-translate-y-0.5"
+              >
+                <BatteryCharging className="h-5 w-5" />
+                전기차 충전소 찾기
+              </Link>
               <ServiceShareButton path="/" eventPath="/" />
             </div>
             <HomeQuickActions />
