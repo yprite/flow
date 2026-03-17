@@ -25,6 +25,9 @@ export function SiteFooter({
           <Link href="/guides" className="hover:text-white">
             가이드
           </Link>
+          <Link href="/ev" className="hover:text-white">
+            전기차 충전
+          </Link>
           <Link href="/about" className="hover:text-white">
             서비스 소개
           </Link>

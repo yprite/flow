@@ -13,6 +13,9 @@ export const DEFAULT_KEYWORDS = [
   '근처 주유소',
   '오피넷',
   '전국 평균 유가',
+  '전기차 충전소',
+  '전기차 충전 요금',
+  'EV 충전',
 ]
 
 export function getSiteUrl() {
