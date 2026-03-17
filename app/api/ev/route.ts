@@ -166,13 +166,18 @@ const VALID_CHARGER_TYPES = ['all', 'fast', 'slow']
 
 // ─── Cache ──────────────────────────────────────────────────────
 const CACHE_TTL = 30 * 60 * 1000 // 30 minutes
-const cache = new Map<string, { data: unknown; expires: number }>()
 
-function getCacheKey(lat: number, lng: number, radius: number, chargerFilter: string, sort: string) {
+// Result cache (keyed by rounded coords + params)
+const resultCache = new Map<string, { data: unknown; expires: number }>()
+
+function getResultCacheKey(lat: number, lng: number, radius: number, chargerFilter: string, sort: string) {
   const roundedLat = Math.round(lat * 100) / 100
   const roundedLng = Math.round(lng * 100) / 100
   return `ev:${roundedLat}:${roundedLng}:${radius}:${chargerFilter}:${sort}`
 }
+
+// Region-level raw data cache (reused across different user searches in same region)
+const regionCache = new Map<string, { data: RawStation[]; expires: number }>()
 
 // ─── API handler ────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -219,19 +224,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Check cache
-  const cacheKey = getCacheKey(lat, lng, radius, chargerFilter, sort)
-  const cached = cache.get(cacheKey)
+  // Check result cache
+  const cacheKey = getResultCacheKey(lat, lng, radius, chargerFilter, sort)
+  const cached = resultCache.get(cacheKey)
   if (cached && cached.expires > Date.now()) {
     return NextResponse.json(cached.data)
   }
 
-  // Query up to 3 closest regions to cover border areas
-  const zcodes = getClosestRegionCodes(lat, lng, 3)
+  // Query up to 2 closest regions to cover border areas
+  const zcodes = getClosestRegionCodes(lat, lng, 2)
   const PAGE_SIZE = 9999
 
-  // Fetch all pages for a given zcode
+  // Fetch all pages for a given zcode (with region-level cache)
   async function fetchRegion(zcode: string): Promise<RawStation[]> {
+    const regionCached = regionCache.get(zcode)
+    if (regionCached && regionCached.expires > Date.now()) {
+      return regionCached.data
+    }
+
     const allItems: RawStation[] = []
     let pageNo = 1
     let totalCount = Infinity
@@ -254,16 +264,25 @@ export async function GET(request: NextRequest) {
       allItems.push(...(items as RawStation[]))
       pageNo++
 
-      // Safety: max 5 pages per region
-      if (pageNo > 5) break
+      // Safety: max 2 pages per region (9999 items covers most regions)
+      if (pageNo > 2) break
+    }
+
+    // Cache at region level
+    if (allItems.length > 0) {
+      regionCache.set(zcode, { data: allItems, expires: Date.now() + CACHE_TTL })
     }
 
     return allItems
   }
 
   try {
-    // Fetch all regions in parallel
-    const regionResults = await Promise.allSettled(zcodes.map(fetchRegion))
+    // Fetch government API regions + Tesla in parallel
+    const [regionResults, teslaSites] = await Promise.all([
+      Promise.allSettled(zcodes.map(fetchRegion)),
+      fetchTeslaSuperchargers(),
+    ])
+
     const allItems: RawStation[] = []
     for (const result of regionResults) {
       if (result.status === 'fulfilled') {
@@ -271,7 +290,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (allItems.length === 0) {
+    if (allItems.length === 0 && teslaSites.length === 0) {
       return NextResponse.json(
         { error: '충전소 데이터를 가져오지 못했습니다.' },
         { status: 502 },
@@ -367,8 +386,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Merge Tesla Superchargers from supercharge.info ────────
-    const teslaSites = await fetchTeslaSuperchargers()
+    // ── Merge Tesla Superchargers (already fetched in parallel) ─
     const teslaPrice = OPERATOR_PRICES.TS
 
     for (const site of teslaSites) {
@@ -445,12 +463,15 @@ export async function GET(request: NextRequest) {
     const rankedStations = stations.map((s, i) => ({ rank: i + 1, ...s }))
     const result = { count: rankedStations.length, stations: rankedStations }
 
-    // Cache
+    // Cache result
     const now = Date.now()
-    for (const [key, entry] of cache) {
-      if (entry.expires <= now) cache.delete(key)
+    for (const [key, entry] of resultCache) {
+      if (entry.expires <= now) resultCache.delete(key)
     }
-    cache.set(cacheKey, { data: result, expires: now + CACHE_TTL })
+    for (const [key, entry] of regionCache) {
+      if (entry.expires <= now) regionCache.delete(key)
+    }
+    resultCache.set(cacheKey, { data: result, expires: now + CACHE_TTL })
 
     return NextResponse.json(result)
   } catch {
