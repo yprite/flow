@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
         `&numOfRows=${PAGE_SIZE}&pageNo=${pageNo}&dataType=JSON` +
         `&zcode=${zcode}`
 
-      const response = await fetch(url, { cache: 'no-store' })
+      const response = await fetch(url, { next: { revalidate: 1800 } })
       if (!response.ok) break
 
       const data = await response.json()
