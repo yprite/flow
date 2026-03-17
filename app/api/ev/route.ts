@@ -34,17 +34,12 @@ const REGION_CENTERS: { code: string; name: string; lat: number; lng: number }[]
   { code: '50', name: '제주', lat: 33.4996, lng: 126.5312 },
 ]
 
-function getClosestRegionCode(lat: number, lng: number): string {
-  let minDist = Infinity
-  let code = '11'
-  for (const r of REGION_CENTERS) {
-    const d = haversineDistance(lat, lng, r.lat, r.lng)
-    if (d < minDist) {
-      minDist = d
-      code = r.code
-    }
-  }
-  return code
+function getClosestRegionCodes(lat: number, lng: number, count: number): string[] {
+  return REGION_CENTERS
+    .map((r) => ({ code: r.code, dist: haversineDistance(lat, lng, r.lat, r.lng) }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, count)
+    .map((r) => r.code)
 }
 
 // ─── Charger type labels ────────────────────────────────────────
@@ -97,6 +92,25 @@ const DEFAULT_PRICE = { slow: 324, fast: 347, label: '기타' }
 
 function getOperatorPrice(busiId: string) {
   return OPERATOR_PRICES[busiId] || DEFAULT_PRICE
+}
+
+// ─── Raw API item type ──────────────────────────────────────────
+interface RawStation {
+  statNm: string
+  statId: string
+  addr: string
+  lat: string
+  lng: string
+  chgerType: string
+  output: string
+  busiId: string
+  busiNm: string
+  stat: string
+  statUpdDt: string
+  useTime: string
+  parkingFree: string
+  limitYn: string
+  limitDetail: string
 }
 
 // ─── Valid charger type filter ──────────────────────────────────
@@ -164,27 +178,52 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cached.data)
   }
 
-  const zcode = getClosestRegionCode(lat, lng)
-  const url =
-    `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo` +
-    `?serviceKey=${encodeURIComponent(apiKey)}` +
-    `&numOfRows=9999&pageNo=1&dataType=JSON` +
-    `&zcode=${zcode}`
+  // Query up to 3 closest regions to cover border areas
+  const zcodes = getClosestRegionCodes(lat, lng, 3)
+  const PAGE_SIZE = 9999
 
-  try {
-    const response = await fetch(url, { cache: 'no-store' })
+  // Fetch all pages for a given zcode
+  async function fetchRegion(zcode: string): Promise<RawStation[]> {
+    const allItems: RawStation[] = []
+    let pageNo = 1
+    let totalCount = Infinity
 
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: '충전소 API 서버가 응답을 안 합니다... 잠시 후 다시 시도해주세요 ㅠㅠ' },
-        { status: 502 },
-      )
+    while (allItems.length < totalCount) {
+      const url =
+        `https://apis.data.go.kr/B552584/EvCharger/getChargerInfo` +
+        `?serviceKey=${encodeURIComponent(apiKey!)}` +
+        `&numOfRows=${PAGE_SIZE}&pageNo=${pageNo}&dataType=JSON` +
+        `&zcode=${zcode}`
+
+      const response = await fetch(url, { cache: 'no-store' })
+      if (!response.ok) break
+
+      const data = await response.json()
+      const items = data?.items?.item
+      if (!items || !Array.isArray(items)) break
+
+      totalCount = parseInt(data?.totalCount || data?.body?.totalCount || '0', 10) || items.length
+      allItems.push(...(items as RawStation[]))
+      pageNo++
+
+      // Safety: max 5 pages per region
+      if (pageNo > 5) break
     }
 
-    const data = await response.json()
-    const items = data?.items?.item
+    return allItems
+  }
 
-    if (!items || !Array.isArray(items)) {
+  try {
+    // Fetch all regions in parallel
+    const regionResults = await Promise.allSettled(zcodes.map(fetchRegion))
+    const allItems: RawStation[] = []
+    for (const result of regionResults) {
+      if (result.status === 'fulfilled') {
+        allItems.push(...result.value)
+      }
+    }
+
+    if (allItems.length === 0) {
       return NextResponse.json(
         { error: '충전소 데이터를 가져오지 못했습니다.' },
         { status: 502 },
@@ -192,24 +231,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Process stations: calculate distance, filter by radius
-    interface RawStation {
-      statNm: string
-      statId: string
-      addr: string
-      lat: string
-      lng: string
-      chgerType: string
-      output: string
-      busiId: string
-      busiNm: string
-      stat: string
-      statUpdDt: string
-      useTime: string
-      parkingFree: string
-      limitYn: string
-      limitDetail: string
-    }
-
     const stationsMap = new Map<
       string,
       {
@@ -238,11 +259,18 @@ export async function GET(request: NextRequest) {
       }
     >()
 
-    for (const item of items as RawStation[]) {
+    // Deduplicate chargers from overlapping region queries
+    const seenChargers = new Set<string>()
+    for (const item of allItems) {
       const stationLat = parseFloat(item.lat)
       const stationLng = parseFloat(item.lng)
 
       if (isNaN(stationLat) || isNaN(stationLng)) continue
+
+      // Skip duplicate charger entries from multi-region queries
+      const chargerKey = `${item.statId}:${item.chgerType}:${item.output}:${item.stat}`
+      if (seenChargers.has(chargerKey)) continue
+      seenChargers.add(chargerKey)
 
       const distance = Math.round(haversineDistance(lat, lng, stationLat, stationLng))
       if (distance > radius) continue
