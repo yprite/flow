@@ -14,22 +14,94 @@ import { SEO_REGIONS } from '@/lib/regions'
 import { GUIDES } from '@/lib/guides'
 import { SITE_NAME, SITE_TAGLINE } from '@/lib/site'
 
-// ─── Road scenery items ─────────────────────────────────────────
-const SCENERY_ITEMS = [
-  { emoji: '\u{1F332}', top: 8, side: 'left' as const, size: 'text-2xl', speed: 0.3 },
-  { emoji: '\u{1F333}', top: 12, side: 'right' as const, size: 'text-xl', speed: 0.25 },
-  { emoji: '\u{1F3E2}', top: 20, side: 'left' as const, size: 'text-lg', speed: 0.2 },
-  { emoji: '\u{26FD}', top: 28, side: 'right' as const, size: 'text-2xl', speed: 0.35 },
-  { emoji: '\u{1F332}', top: 35, side: 'right' as const, size: 'text-xl', speed: 0.28 },
-  { emoji: '\u{1F3EA}', top: 42, side: 'left' as const, size: 'text-lg', speed: 0.22 },
-  { emoji: '\u{1F333}', top: 50, side: 'left' as const, size: 'text-2xl', speed: 0.3 },
-  { emoji: '\u{1F50B}', top: 55, side: 'right' as const, size: 'text-xl', speed: 0.32 },
-  { emoji: '\u{1F332}', top: 62, side: 'right' as const, size: 'text-lg', speed: 0.25 },
-  { emoji: '\u{1F3E0}', top: 68, side: 'left' as const, size: 'text-xl', speed: 0.2 },
-  { emoji: '\u{26FD}', top: 75, side: 'left' as const, size: 'text-2xl', speed: 0.35 },
-  { emoji: '\u{1F333}', top: 82, side: 'right' as const, size: 'text-xl', speed: 0.28 },
-  { emoji: '\u{1F3E2}', top: 88, side: 'left' as const, size: 'text-lg', speed: 0.22 },
-  { emoji: '\u{1F332}', top: 94, side: 'right' as const, size: 'text-2xl', speed: 0.3 },
+// ─── Road scenery config ────────────────────────────────────────
+// layer: 'far' (small, faint, slow) | 'mid' | 'near' (big, bold, fast)
+type SceneryLayer = 'far' | 'mid' | 'near'
+interface SceneryConfig {
+  emoji: string
+  top: number
+  side: 'left' | 'right'
+  layer: SceneryLayer
+  offset?: number // horizontal offset from road edge (px)
+}
+
+const LAYER_STYLES: Record<SceneryLayer, { size: string; opacity: string; speed: number }> = {
+  far:  { size: 'text-sm',  opacity: 'opacity-10', speed: 0.12 },
+  mid:  { size: 'text-xl',  opacity: 'opacity-20', speed: 0.25 },
+  near: { size: 'text-3xl', opacity: 'opacity-30', speed: 0.40 },
+}
+
+const SCENERY_ITEMS: SceneryConfig[] = [
+  // ── clouds (very far, slow) ──
+  { emoji: '\u{2601}\u{FE0F}', top: 2,  side: 'left',  layer: 'far', offset: 20 },
+  { emoji: '\u{26C5}',         top: 5,  side: 'right', layer: 'far', offset: 30 },
+  { emoji: '\u{2601}\u{FE0F}', top: 30, side: 'right', layer: 'far', offset: 10 },
+  { emoji: '\u{2601}\u{FE0F}', top: 58, side: 'left',  layer: 'far', offset: 25 },
+  { emoji: '\u{26C5}',         top: 80, side: 'right', layer: 'far', offset: 15 },
+
+  // ── trees & nature (mid layer) ──
+  { emoji: '\u{1F332}', top: 6,  side: 'left',  layer: 'mid' },
+  { emoji: '\u{1F333}', top: 10, side: 'right', layer: 'mid' },
+  { emoji: '\u{1F332}', top: 18, side: 'right', layer: 'mid' },
+  { emoji: '\u{1F333}', top: 26, side: 'left',  layer: 'mid' },
+  { emoji: '\u{1F332}', top: 34, side: 'left',  layer: 'mid' },
+  { emoji: '\u{1F333}', top: 44, side: 'right', layer: 'mid' },
+  { emoji: '\u{1F332}', top: 52, side: 'left',  layer: 'mid' },
+  { emoji: '\u{1F333}', top: 64, side: 'right', layer: 'mid' },
+  { emoji: '\u{1F332}', top: 72, side: 'left',  layer: 'mid' },
+  { emoji: '\u{1F333}', top: 86, side: 'right', layer: 'mid' },
+  { emoji: '\u{1F332}', top: 92, side: 'left',  layer: 'mid' },
+
+  // ── buildings & landmarks (near layer, prominent) ──
+  { emoji: '\u{1F3E2}', top: 14, side: 'left',  layer: 'near' },  // office
+  { emoji: '\u{1F3EA}', top: 22, side: 'right', layer: 'near' },  // convenience store
+  { emoji: '\u{26FD}',  top: 30, side: 'left',  layer: 'near' },  // gas station
+  { emoji: '\u{1F3E0}', top: 38, side: 'right', layer: 'near' },  // house
+  { emoji: '\u{1F3E5}', top: 46, side: 'left',  layer: 'near' },  // hospital
+  { emoji: '\u{1F3EB}', top: 54, side: 'right', layer: 'near' },  // school
+  { emoji: '\u{26FD}',  top: 60, side: 'right', layer: 'near' },  // gas station
+  { emoji: '\u{1F3E2}', top: 68, side: 'left',  layer: 'near' },  // office
+  { emoji: '\u{1F50B}', top: 76, side: 'right', layer: 'near' },  // EV charger
+  { emoji: '\u{1F3EA}', top: 84, side: 'left',  layer: 'near' },  // store
+  { emoji: '\u{1F3E0}', top: 90, side: 'right', layer: 'near' },  // house
+
+  // ── street furniture (near layer) ──
+  { emoji: '\u{1F6A6}', top: 8,  side: 'right', layer: 'near' },   // traffic light
+  { emoji: '\u{1F6A6}', top: 42, side: 'left',  layer: 'near' },   // traffic light
+  { emoji: '\u{1F6A6}', top: 78, side: 'right', layer: 'near' },   // traffic light
+]
+
+// ─── Oncoming traffic (vehicles going the opposite way) ─────────
+interface TrafficConfig {
+  emoji: string
+  top: number
+  side: 'left' | 'right'
+  speed: number     // higher = faster upward movement
+  size: string
+  delay: number     // stagger start
+}
+
+const ONCOMING_TRAFFIC: TrafficConfig[] = [
+  { emoji: '\u{1F68C}', top: 15, side: 'left',  speed: 0.55, size: 'text-2xl', delay: 0 },     // bus
+  { emoji: '\u{1F69A}', top: 35, side: 'right', speed: 0.50, size: 'text-xl',  delay: 0.5 },   // truck
+  { emoji: '\u{1F3CD}\u{FE0F}', top: 55, side: 'left', speed: 0.65, size: 'text-lg', delay: 1 }, // motorcycle
+  { emoji: '\u{1F695}', top: 70, side: 'right', speed: 0.48, size: 'text-xl',  delay: 0.3 },   // taxi
+  { emoji: '\u{1F68C}', top: 88, side: 'left',  speed: 0.52, size: 'text-2xl', delay: 0.8 },   // bus
+]
+
+// ─── Road signs ─────────────────────────────────────────────────
+interface SignConfig {
+  text: string
+  top: number
+  side: 'left' | 'right'
+  speed: number
+}
+
+const ROAD_SIGNS: SignConfig[] = [
+  { text: '&#x26FD; 2km', top: 16, side: 'right', speed: 0.3 },
+  { text: '&#x1F50B; 3km', top: 40, side: 'left', speed: 0.28 },
+  { text: '&#x1F3D9;&#xFE0F; &#xC11C;&#xC6B8; 48km', top: 62, side: 'right', speed: 0.32 },
+  { text: '&#x26FD; 500m', top: 82, side: 'left', speed: 0.3 },
 ]
 
 // ─── Scenery item with parallax ─────────────────────────────────
@@ -37,29 +109,84 @@ function SceneryItem({
   emoji,
   top,
   side,
-  size,
-  speed,
+  layer,
+  offset = 0,
   scrollYProgress,
-}: {
-  emoji: string
-  top: number
-  side: 'left' | 'right'
-  size: string
-  speed: number
+}: SceneryConfig & {
   scrollYProgress: ReturnType<typeof useScroll>['scrollYProgress']
 }) {
-  const y = useTransform(scrollYProgress, [0, 1], [0, -speed * 600])
+  const style = LAYER_STYLES[layer]
+  const y = useTransform(scrollYProgress, [0, 1], [0, -style.speed * 800])
 
   return (
     <motion.div
-      className={`pointer-events-none absolute ${size} opacity-20`}
+      className={`pointer-events-none absolute ${style.size} ${style.opacity}`}
       style={{
         top: `${top}%`,
-        [side]: side === 'left' ? '4px' : '4px',
+        [side]: `${4 + offset}px`,
         y,
       }}
     >
       {emoji}
+    </motion.div>
+  )
+}
+
+// ─── Oncoming vehicle with parallax ─────────────────────────────
+function OncomingVehicle({
+  emoji,
+  top,
+  side,
+  speed,
+  size,
+  delay,
+  scrollYProgress,
+}: TrafficConfig & {
+  scrollYProgress: ReturnType<typeof useScroll>['scrollYProgress']
+}) {
+  // Moves upward faster than scenery (opposite direction feel)
+  const y = useTransform(scrollYProgress, [0, 1], [delay * 200, -speed * 1200])
+
+  return (
+    <motion.div
+      className={`pointer-events-none absolute ${size} opacity-15`}
+      style={{
+        top: `${top}%`,
+        [side]: side === 'left' ? '14px' : '14px',
+        y,
+        scaleX: -1, // flip to face opposite direction
+      }}
+    >
+      {emoji}
+    </motion.div>
+  )
+}
+
+// ─── Road sign with parallax ────────────────────────────────────
+function RoadSign({
+  text,
+  top,
+  side,
+  speed,
+  scrollYProgress,
+}: SignConfig & {
+  scrollYProgress: ReturnType<typeof useScroll>['scrollYProgress']
+}) {
+  const y = useTransform(scrollYProgress, [0, 1], [0, -speed * 800])
+
+  return (
+    <motion.div
+      className="pointer-events-none absolute opacity-25"
+      style={{
+        top: `${top}%`,
+        [side]: '2px',
+        y,
+      }}
+    >
+      <div
+        className="rounded border border-white/30 bg-emerald-900/80 px-2 py-1 text-[10px] font-bold text-white"
+        dangerouslySetInnerHTML={{ __html: text }}
+      />
     </motion.div>
   )
 }
@@ -289,9 +416,19 @@ export function RoadJourneyLanding({
         {/* Scroll-linked center dashed line */}
         <RoadCenterLine scrollYProgress={scrollYProgress} />
 
-        {/* Parallax road scenery */}
+        {/* Parallax road scenery (trees, buildings, clouds, lights) */}
         {SCENERY_ITEMS.map((item, i) => (
-          <SceneryItem key={i} {...item} scrollYProgress={scrollYProgress} />
+          <SceneryItem key={`s-${i}`} {...item} scrollYProgress={scrollYProgress} />
+        ))}
+
+        {/* Oncoming traffic (buses, trucks, motorcycles) */}
+        {ONCOMING_TRAFFIC.map((item, i) => (
+          <OncomingVehicle key={`v-${i}`} {...item} scrollYProgress={scrollYProgress} />
+        ))}
+
+        {/* Road signs */}
+        {ROAD_SIGNS.map((item, i) => (
+          <RoadSign key={`r-${i}`} {...item} scrollYProgress={scrollYProgress} />
         ))}
 
         {/* ─── HERO ──────────────────────────────────────────── */}
