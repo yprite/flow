@@ -134,6 +134,7 @@ const OPERATOR_NAMES: Record<string, string> = {
   SF: 'SK에너지',
   EV: '에버온',
   HD: '현대자동차',
+  TS: '테슬라',
 }
 
 const OPERATOR_COLORS: Record<string, { border: string; bg: string; text: string }> = {
@@ -146,6 +147,7 @@ const OPERATOR_COLORS: Record<string, { border: string; bg: string; text: string
   EV: { border: 'border-l-teal-500', bg: 'bg-teal-500', text: 'text-teal-400' },
   GN: { border: 'border-l-sky-500', bg: 'bg-sky-500', text: 'text-sky-400' },
   HD: { border: 'border-l-indigo-500', bg: 'bg-indigo-500', text: 'text-indigo-400' },
+  TS: { border: 'border-l-rose-500', bg: 'bg-rose-500', text: 'text-rose-400' },
 }
 
 const DEFAULT_COLOR = { border: 'border-l-slate-500', bg: 'bg-slate-500', text: 'text-slate-400' }

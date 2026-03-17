@@ -86,6 +86,7 @@ const OPERATOR_PRICES: Record<string, { slow: number; fast: number; label: strin
   RE: { slow: 300, fast: 340, label: '레드이엔지' },
   NT: { slow: 310, fast: 350, label: '이카플러그' },
   DP: { slow: 300, fast: 340, label: '대영채비' },
+  TS: { slow: 0, fast: 360, label: '테슬라 슈퍼차저' },
 }
 
 const DEFAULT_PRICE = { slow: 324, fast: 347, label: '기타' }
@@ -111,6 +112,53 @@ interface RawStation {
   parkingFree: string
   limitYn: string
   limitDetail: string
+}
+
+// ─── Tesla Supercharger types ────────────────────────────────────
+interface SuperchargeInfoSite {
+  id: number
+  name: string
+  status: string // OPEN, CONSTRUCTION, PERMIT, CLOSED
+  address: { street: string; city: string; state: string; country: string }
+  gps: { latitude: number; longitude: number }
+  stallCount: number
+  powerKilowatt: number
+  dateOpened: string | null
+}
+
+// Tesla supercharger cache (shared across requests, 1 hour TTL)
+let teslaCacheData: SuperchargeInfoSite[] | null = null
+let teslaCacheExpires = 0
+
+async function fetchTeslaSuperchargers(): Promise<SuperchargeInfoSite[]> {
+  const now = Date.now()
+  if (teslaCacheData && teslaCacheExpires > now) {
+    return teslaCacheData
+  }
+
+  try {
+    const res = await fetch('https://supercharge.info/service/supercharge/allSites', {
+      next: { revalidate: 3600 },
+    })
+    if (!res.ok) return teslaCacheData || []
+
+    const sites: SuperchargeInfoSite[] = await res.json()
+
+    // Filter Korea only + OPEN status
+    const koreaSites = sites.filter(
+      (s) =>
+        s.address.country === 'South Korea' &&
+        s.status === 'OPEN' &&
+        s.gps.latitude > 0 &&
+        s.gps.longitude > 0,
+    )
+
+    teslaCacheData = koreaSites
+    teslaCacheExpires = now + 3600 * 1000 // 1 hour
+    return koreaSites
+  } catch {
+    return teslaCacheData || []
+  }
 }
 
 // ─── Valid charger type filter ──────────────────────────────────
@@ -317,6 +365,51 @@ export async function GET(request: NextRequest) {
           chargers: [charger],
         })
       }
+    }
+
+    // ── Merge Tesla Superchargers from supercharge.info ────────
+    const teslaSites = await fetchTeslaSuperchargers()
+    const teslaPrice = OPERATOR_PRICES.TS
+
+    for (const site of teslaSites) {
+      const distance = Math.round(haversineDistance(lat, lng, site.gps.latitude, site.gps.longitude))
+      if (distance > radius) continue
+
+      // Skip if charger filter is 'slow' (Superchargers are all fast)
+      if (chargerFilter === 'slow') continue
+
+      const stationId = `tesla-sc-${site.id}`
+      if (stationsMap.has(stationId)) continue
+
+      const output = site.powerKilowatt || 250
+      const chargers = Array.from({ length: site.stallCount || 1 }, (_, i) => ({
+        type: 'NACS',
+        typeName: output >= 250 ? `슈퍼차저 V3 (${output}kW)` : `슈퍼차저 (${output}kW)`,
+        output,
+        status: '9', // 실시간 상태 미제공
+        statusName: '상태미확인',
+        isFast: true,
+        price: teslaPrice.fast,
+        updatedAt: '',
+      }))
+
+      stationsMap.set(stationId, {
+        id: stationId,
+        name: `Tesla ${site.name}`,
+        addr: [site.address.street, site.address.city, site.address.state]
+          .filter(Boolean)
+          .join(' '),
+        lat: site.gps.latitude,
+        lng: site.gps.longitude,
+        distance,
+        operator: '테슬라 슈퍼차저',
+        operatorId: 'TS',
+        useTime: '24시간',
+        parkingFree: false,
+        limitYn: false,
+        limitDetail: '',
+        chargers,
+      })
     }
 
     let stations = Array.from(stationsMap.values()).map((station) => {
